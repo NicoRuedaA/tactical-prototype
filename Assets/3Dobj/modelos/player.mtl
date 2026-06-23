@@ -1,0 +1,32 @@
+newmtl color_2
+Kd 1.0000 0.7882 0.0549
+illum 1
+
+newmtl color_3
+Kd 0.7216 0.5647 0.0549
+illum 1
+
+newmtl color_5
+Kd 0.6392 0.2863 0.6431
+illum 1
+
+newmtl color_4
+Kd 0.8039 0.3333 0.8118
+illum 1
+
+newmtl color_8
+Kd 0.0000 0.0000 0.0000
+illum 1
+
+newmtl color_7
+Kd 0.5333 0.0000 0.0824
+illum 1
+
+newmtl color_6
+Kd 0.9294 0.1098 0.1412
+illum 1
+
+newmtl color_1
+Kd 1.0000 0.9490 0.0000
+illum 1
+

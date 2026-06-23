@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec9d07a5884f0e74fbe535e2d8bd5793, type: 3}
+  m_Name: CD_EnemyPawn
+  m_EditorClassIdentifier: 
+  displayName: Enemy Pawn
+  icon: {fileID: 0}
+  maxHp: 8
+  maxMana: 4
+  damage: 2
+  attackRange: 1
+  moveRange: 3
+  initiative: 6
+  isQueen: 0
+  abilities:
+  - {fileID: 11400000, guid: 65ccf0b4af679b54dbfb56360a78ce4d, type: 2}
+  - {fileID: 11400000, guid: af35d50ae798f1e4295c5a06b0545fa3, type: 2}
