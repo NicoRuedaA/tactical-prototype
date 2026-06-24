@@ -17,13 +17,26 @@ namespace Game.Core.Tests
             return new Piece(id, Team.Enemy, hp, 1, 1, 1, 5, name: id);
         }
 
+        /// <summary>
+        /// Builds a simple 2-row linear graph: start → n1 → boss
+        /// </summary>
+        private static MapGraph MakeTwoStepGraph()
+        {
+            var start = new MapNode("start", MapNodeType.Combat, 0, 0);
+            var n1 = new MapNode("n1", MapNodeType.Combat, 1, 0);
+            var boss = new MapNode("boss", MapNodeType.Boss, 2, 0);
+            start.ConnectedNodeIds.Add("n1");
+            n1.ConnectedNodeIds.Add("boss");
+            return new MapGraph(new[] { start, n1, boss }, "start", "boss");
+        }
+
         // ── Constructor ───────────────────────────────────────────────────────
 
         [Test]
         public void Constructor_StoresPieces()
         {
             var pieces = new[] { MakePiece("p1"), MakePiece("p2") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             Assert.AreEqual(2, state.Pieces.Count);
             Assert.AreEqual("p1", state.Pieces[0].Id);
@@ -33,60 +46,129 @@ namespace Game.Core.Tests
         [Test]
         public void Constructor_ThrowsOnNullPieces()
         {
-            Assert.That(() => new RunState(null), Throws.ArgumentNullException);
+            Assert.That(() => new RunState(null, MakeTwoStepGraph()), Throws.ArgumentNullException);
         }
 
         [Test]
         public void Constructor_ThrowsOnEmptyPieces()
         {
-            Assert.That(() => new RunState(new List<Piece>()), Throws.ArgumentException);
+            Assert.That(() => new RunState(new List<Piece>(), MakeTwoStepGraph()), Throws.ArgumentException);
         }
 
         [Test]
-        public void Constructor_HasDefaultTotalCombats()
+        public void Constructor_StoresGraph()
         {
-            var state = new RunState(new[] { MakePiece("p1") });
-            Assert.AreEqual(3, state.TotalCombats);
+            var graph = MakeTwoStepGraph();
+            var state = new RunState(new[] { MakePiece("p1") }, graph);
+
+            Assert.AreSame(graph, state.Graph);
         }
 
         [Test]
-        public void Constructor_StartsAtCombatIndexZero()
+        public void Constructor_LastVisitedNodeIdIsNull()
         {
-            var state = new RunState(new[] { MakePiece("p1") });
-            Assert.AreEqual(0, state.CombatIndex);
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
+
+            Assert.IsNull(state.LastVisitedNodeId);
+        }
+
+        [Test]
+        public void Constructor_ThrowsOnNullGraph()
+        {
+            Assert.That(() => new RunState(new[] { MakePiece("p1") }, null),
+                Throws.ArgumentNullException);
         }
 
         // ── AdvanceCombat ─────────────────────────────────────────────────────
 
         [Test]
-        public void AdvanceCombat_IncrementsIndex()
+        public void AdvanceCombat_ReturnsTrueBeforeBossVisited()
         {
-            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+            var graph = MakeTwoStepGraph();
+            var state = new RunState(new[] { MakePiece("p1") }, graph);
 
-            Assert.AreEqual(0, state.CombatIndex);
-            state.AdvanceCombat();
-            Assert.AreEqual(1, state.CombatIndex);
-            state.AdvanceCombat();
-            Assert.AreEqual(2, state.CombatIndex);
+            Assert.IsTrue(state.AdvanceCombat()); // Boss not yet visited
         }
 
         [Test]
-        public void AdvanceCombat_ReturnsTrueWhenMoreCombatsRemain()
+        public void AdvanceCombat_ReturnsFalseAfterBossVisited()
         {
-            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+            var graph = MakeTwoStepGraph();
+            var state = new RunState(new[] { MakePiece("p1") }, graph);
 
-            Assert.IsTrue(state.AdvanceCombat()); // 0 → 1, still more
-            Assert.IsTrue(state.AdvanceCombat()); // 1 → 2, still more
+            state.VisitNode("n1");
+            state.VisitNode("boss");
+
+            Assert.IsFalse(state.AdvanceCombat()); // Boss visited → IsComplete
         }
 
         [Test]
-        public void AdvanceCombat_ReturnsFalseOnLastCombat()
+        public void AdvanceCombat_TransitionsFromTrueToFalse()
         {
-            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+            var graph = MakeTwoStepGraph();
+            var state = new RunState(new[] { MakePiece("p1") }, graph);
 
-            state.AdvanceCombat(); // 0 → 1
-            state.AdvanceCombat(); // 1 → 2
-            Assert.IsFalse(state.AdvanceCombat()); // 2 → 3, at or past total
+            Assert.IsTrue(state.AdvanceCombat()); // before start
+            state.VisitNode("n1");
+            Assert.IsTrue(state.AdvanceCombat()); // mid-way
+            state.VisitNode("boss");
+            Assert.IsFalse(state.AdvanceCombat()); // boss visited → complete
+        }
+
+        // ── VisitNode ─────────────────────────────────────────────────────────
+
+        [Test]
+        public void VisitNode_UpdatesLastVisitedNodeId()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
+
+            state.VisitNode("n1");
+
+            Assert.AreEqual("n1", state.LastVisitedNodeId);
+        }
+
+        [Test]
+        public void VisitNode_DelegatesToGraph()
+        {
+            var graph = MakeTwoStepGraph();
+            var state = new RunState(new[] { MakePiece("p1") }, graph);
+
+            state.VisitNode("n1");
+
+            Assert.IsTrue(graph.Nodes["n1"].IsVisited);
+        }
+
+        [Test]
+        public void VisitNode_ThrowsOnNonExistentNode()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
+
+            Assert.That(() => state.VisitNode("ghost"), Throws.ArgumentException);
+        }
+
+        // ── GetAvailableNodes ─────────────────────────────────────────────────
+
+        [Test]
+        public void GetAvailableNodes_DelegatesToGraph()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
+
+            var available = state.GetAvailableNodes();
+
+            Assert.AreEqual(1, available.Count);
+            Assert.AreEqual("n1", available[0]);
+        }
+
+        [Test]
+        public void GetAvailableNodes_UpdatesAfterVisit()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
+
+            state.VisitNode("n1");
+            var available = state.GetAvailableNodes();
+
+            Assert.AreEqual(1, available.Count);
+            Assert.AreEqual("boss", available[0]);
         }
 
         // ── IsPlayerDead ──────────────────────────────────────────────────────
@@ -95,7 +177,7 @@ namespace Game.Core.Tests
         public void IsPlayerDead_FalseWhenAllAlive()
         {
             var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             Assert.IsFalse(state.IsPlayerDead);
         }
@@ -104,7 +186,7 @@ namespace Game.Core.Tests
         public void IsPlayerDead_TrueWhenAllDead()
         {
             var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             foreach (var p in state.Pieces)
                 p.TakeDamage(99);
@@ -116,7 +198,7 @@ namespace Game.Core.Tests
         public void IsPlayerDead_TrueWhenSinglePieceDead()
         {
             var piece = MakePiece("p1", hp: 5);
-            var state = new RunState(new[] { piece });
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
 
             piece.TakeDamage(99);
 
@@ -127,7 +209,7 @@ namespace Game.Core.Tests
         public void IsPlayerDead_FalseWhenSomeAlive()
         {
             var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.Pieces[0].TakeDamage(99); // p1 dead, p2 alive
 
@@ -140,7 +222,7 @@ namespace Game.Core.Tests
         public void GetAlivePlayerPieces_ReturnsAllWhenNoneDead()
         {
             var pieces = new[] { MakePiece("p1"), MakePiece("p2") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             var alive = state.GetAlivePlayerPieces().ToList();
 
@@ -151,7 +233,7 @@ namespace Game.Core.Tests
         public void GetAlivePlayerPieces_FiltersDeadPieces()
         {
             var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.Pieces[0].TakeDamage(99); // p1 dead
 
@@ -165,7 +247,7 @@ namespace Game.Core.Tests
         public void GetAlivePlayerPieces_ReturnsEmptyWhenAllDead()
         {
             var pieces = new[] { MakePiece("p1", hp: 5) };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.Pieces[0].TakeDamage(99);
 
@@ -178,7 +260,7 @@ namespace Game.Core.Tests
         public void AddAbility_StoresAbilityOnPiece()
         {
             var pieces = new[] { MakePiece("p1") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
             var ability = new TestAbilityStub { DisplayName = "Fireball" };
 
             state.AddAbility("p1", ability);
@@ -191,7 +273,7 @@ namespace Game.Core.Tests
         public void AddAbility_NullIsNoOp()
         {
             var pieces = new[] { MakePiece("p1") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.AddAbility("p1", null);
 
@@ -201,7 +283,7 @@ namespace Game.Core.Tests
         [Test]
         public void AddAbility_ThrowsOnMissingPiece()
         {
-            var state = new RunState(new[] { MakePiece("p1") });
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
             var ability = new TestAbilityStub();
 
             Assert.That(() => state.AddAbility("nonexistent", ability), Throws.ArgumentException);
@@ -213,7 +295,7 @@ namespace Game.Core.Tests
         public void ApplyStatBoost_Damage_IncreasesEffectiveDamage()
         {
             var pieces = new[] { MakePiece("p1") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.ApplyStatBoost("p1", StatType.Damage, 3);
 
@@ -224,7 +306,7 @@ namespace Game.Core.Tests
         public void ApplyStatBoost_AttackRange_IncreasesEffectiveAttackRange()
         {
             var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
-            var state = new RunState(new[] { piece });
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
 
             state.ApplyStatBoost("p1", StatType.AttackRange, 2);
 
@@ -235,7 +317,7 @@ namespace Game.Core.Tests
         public void ApplyStatBoost_MoveRange_IncreasesEffectiveMoveRange()
         {
             var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
-            var state = new RunState(new[] { piece });
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
 
             state.ApplyStatBoost("p1", StatType.MoveRange, 1);
 
@@ -249,7 +331,7 @@ namespace Game.Core.Tests
         {
             var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
             piece.TakeDamage(4);
-            var state = new RunState(new[] { piece });
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
 
             state.ApplyMaxHpBoost("p1", 3);
 
@@ -261,7 +343,7 @@ namespace Game.Core.Tests
         public void ApplyMaxHpBoost_WithFullHp_GrantsExtraHp()
         {
             var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
-            var state = new RunState(new[] { piece });
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
 
             state.ApplyMaxHpBoost("p1", 5);
 
@@ -272,7 +354,7 @@ namespace Game.Core.Tests
         [Test]
         public void ApplyMaxHpBoost_ThrowsOnMissingPiece()
         {
-            var state = new RunState(new[] { MakePiece("p1") });
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
 
             Assert.That(() => state.ApplyMaxHpBoost("nonexistent", 5), Throws.ArgumentException);
         }
@@ -283,7 +365,7 @@ namespace Game.Core.Tests
         public void PlacePiece_UpdatesCoords()
         {
             var pieces = new[] { MakePiece("p1") };
-            var state = new RunState(pieces);
+            var state = new RunState(pieces, MakeTwoStepGraph());
 
             state.PlacePiece("p1", new Axial(2, 3));
 
@@ -293,7 +375,7 @@ namespace Game.Core.Tests
         [Test]
         public void PlacePiece_ThrowsOnMissingPiece()
         {
-            var state = new RunState(new[] { MakePiece("p1") });
+            var state = new RunState(new[] { MakePiece("p1") }, MakeTwoStepGraph());
 
             Assert.That(() => state.PlacePiece("nonexistent", new Axial(0, 0)), Throws.ArgumentException);
         }

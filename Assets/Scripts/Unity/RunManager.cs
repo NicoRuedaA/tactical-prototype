@@ -27,6 +27,9 @@ public sealed class RunManager : MonoBehaviour
 
     public RunState CurrentRun { get; private set; }
 
+    /// <summary>Increments each time the player clears a combat. Used to index enemy team config.</summary>
+    private int _currentCombatIndex;
+
     private void Awake()
     {
         if (Instance != null)
@@ -71,6 +74,7 @@ public sealed class RunManager : MonoBehaviour
             pieces.Add(piece);
         }
 
+        _currentCombatIndex = 0;
         CurrentRun = new RunState(pieces, totalCombats: 3);
         Debug.Log($"Run started with {pieces.Count} pieces, 3 combats");
 
@@ -89,7 +93,8 @@ public sealed class RunManager : MonoBehaviour
             bool moreCombats = CurrentRun.AdvanceCombat();
             if (moreCombats)
             {
-                Debug.Log($"Combat {CurrentRun.CombatIndex - 1} won! Loading reward...");
+                _currentCombatIndex++;
+                Debug.Log($"Combat {_currentCombatIndex} won! Loading reward...");
                 SceneManager.sceneLoaded += OnRewardSceneLoaded;
                 SceneManager.LoadScene("Reward");
             }
@@ -157,7 +162,7 @@ public sealed class RunManager : MonoBehaviour
             return;
         }
 
-        runner.Initialize(CurrentRun, CurrentRun.CombatIndex);
+        runner.Initialize(CurrentRun, _currentCombatIndex);
         runner.CombatEnded += OnCombatEnded;
     }
 
