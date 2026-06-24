@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.5 — Boss & Elite Encounters (2026-06-24)
+
+### Added
+- **IEnemyAI strategy interface** (Game.Core): pluggable AI architecture — DefaultEnemyAI, BossEnemyAI, EliteEnemyAI.
+- **BossEnemyAI** (Game.Core): phase-aware boss AI with HP threshold enrage (new ability + damage buff at ≤40%), AoE on schedule every 3 turns.
+- **EliteEnemyAI** (Game.Core): ability-priority AI that delegates to DefaultEnemyAI after attempting elite passives.
+- **CombatEngine.TurnCount + OnTurnStart**: turn counter and event for time-based AI triggers.
+- **BossData / EliteData** (Unity): ScriptableObjects extending CharacterData with phase ability, damage buff, phase threshold, and elite passive.
+- **TeamRoster pool**: RunManager selects enemy teams by MapNodeType (Boss → boss team, Elite → elite team, Combat → normal team).
+- **GameOver scene**: VICTORY/DEFEAT screen with Main Menu return button. Boss node completion triggers victory; queen death triggers defeat.
+- **CombatRunner AI dispatch**: inspects CharacterData type at runtime to assign correct AI strategy.
+- **BD_InfernalKing.asset**: boss with 30 HP, 5 damage, Fireball + PowerStrike.
+- **ED_ShadowAssassin.asset**: elite with 12 HP, 3 damage, Thorns passive.
+- **SceneSetup.CreateGameOverScene() + CreateBossEliteAssets()**: editor tooling for scene and data asset generation.
+
+### Changed
+- **EnemyTurnAI static class**: extracted to DefaultEnemyAI behind IEnemyAI interface, reducing legacy coupling.
+- **CharacterData.CreatePiece**: made virtual so BossData/EliteData can inject AI and passives.
+
+### Tests
+- 32 new tests (Boss AI 9, Elite AI 5, Phase 4 integration 8, Data layer 8, Phase 1 core 2)
+- All 119 tests passing (103 legacy + 32 new, 0 regressions)
+
+---
+
 ## v0.4 — Map System (2026-06-24)
 
 ### Added
