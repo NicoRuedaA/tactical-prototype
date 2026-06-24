@@ -341,6 +341,61 @@ namespace Game.Core.Tests
             Assert.AreEqual(2, player.EffectiveDamage); // back to base
         }
 
+        // ── Piece.AddAbility ──────────────────────────────────────────────────
+
+        [Test]
+        public void AddAbility_AddsToRuntimeList()
+        {
+            var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
+            var ability = new TestAbility { DisplayName = "Fireball" };
+
+            Assert.AreEqual(0, piece.Abilities.Count);
+            piece.AddAbility(ability);
+            Assert.AreEqual(1, piece.Abilities.Count);
+            Assert.AreEqual("Fireball", piece.Abilities[0].DisplayName);
+        }
+
+        [Test]
+        public void AddAbility_NullIsNoOp()
+        {
+            var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
+            piece.AddAbility(null);
+            Assert.AreEqual(0, piece.Abilities.Count);
+        }
+
+        [Test]
+        public void AddBonusMaxHp_IncreasesEffectiveMaxHpAndHeals()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
+            piece.TakeDamage(4);
+            Assert.AreEqual(6, piece.Hp);
+
+            piece.AddBonusMaxHp(3);
+
+            Assert.AreEqual(13, piece.EffectiveMaxHp); // 10 + 3
+            Assert.AreEqual(9, piece.Hp);              // 6 + 3
+        }
+
+        [Test]
+        public void AddBonusDamage_IncreasesEffectiveDamage()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 5, 1, 1, 10);
+
+            piece.AddBonusDamage(3);
+
+            Assert.AreEqual(8, piece.EffectiveDamage); // 5 + 3
+        }
+
+        [Test]
+        public void EffectiveMaxHp_IncludesBonusHp()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
+
+            Assert.AreEqual(10, piece.EffectiveMaxHp);
+            piece.AddBonusMaxHp(5);
+            Assert.AreEqual(15, piece.EffectiveMaxHp);
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static (CombatEngine engine, Piece player, Piece enemy) TwoPieces(

@@ -25,10 +25,17 @@ namespace Game.Core
         public int MoveRange  { get; }
         public int Initiative { get; }
 
-        // --- Effective stats (base + active buff modifiers) ---
-        public int EffectiveDamage      => Damage      + SumBuffs(StatType.Damage);
-        public int EffectiveAttackRange => AttackRange + SumBuffs(StatType.AttackRange);
-        public int EffectiveMoveRange   => MoveRange   + SumBuffs(StatType.MoveRange);
+        // --- Bonus stat fields (run progression buffs) ---
+        private int _bonusHp;
+        private int _bonusDamage;
+        private int _bonusAttackRange;
+        private int _bonusMoveRange;
+
+        // --- Effective stats (base + bonuses + active buff modifiers) ---
+        public int EffectiveDamage      => Damage      + _bonusDamage      + SumBuffs(StatType.Damage);
+        public int EffectiveAttackRange => AttackRange + _bonusAttackRange + SumBuffs(StatType.AttackRange);
+        public int EffectiveMoveRange   => MoveRange   + _bonusMoveRange   + SumBuffs(StatType.MoveRange);
+        public int EffectiveMaxHp       => MaxHp       + _bonusHp;
 
         public Axial Coords { get; set; }
         public bool  IsDead => Hp <= 0;
@@ -91,6 +98,31 @@ namespace Game.Core
             if (amount <= 0) return;
             Mana += amount;
             if (Mana > MaxMana) Mana = MaxMana;
+        }
+
+        // --- Run progression (ability / stat boost management) ---
+
+        public void AddAbility(IAbilityData ability)
+        {
+            if (ability == null) return;
+            _abilities.Add(ability);
+        }
+
+        public void AddBonusDamage(int amount)      => _bonusDamage += amount;
+        public void AddBonusAttackRange(int amount)  => _bonusAttackRange += amount;
+        public void AddBonusMoveRange(int amount)    => _bonusMoveRange += amount;
+
+        /// <summary>
+        /// Increases max HP by <paramref name="amount"/> and heals by the same
+        /// amount so the piece effectively gains that much max HP without
+        /// requiring a separate heal.
+        /// Note: does NOT use Heal() because Heal clamps at base MaxHp, not EffectiveMaxHp.
+        /// </summary>
+        public void AddBonusMaxHp(int amount)
+        {
+            _bonusHp += amount;
+            Hp += amount;
+            if (Hp > EffectiveMaxHp) Hp = EffectiveMaxHp; // safety clamp
         }
 
         // --- Buff management ---
