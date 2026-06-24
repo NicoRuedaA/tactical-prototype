@@ -487,6 +487,95 @@ namespace Game.Core.Tests
             Assert.Less(after, before);
         }
 
+        // ── TurnCount ────────────────────────────────────────────────────────
+
+        [Test]
+        public void TurnCount_StartsAtZero()
+        {
+            var board  = Board.CreateRectangle(3, 1);
+            var player = new Piece("P", Team.Player, 5, 1, 1, 1, 10) { Coords = new Axial(0, 0) };
+            var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1)  { Coords = new Axial(2, 0) };
+            var engine = new CombatEngine(board, new[] { player, enemy });
+
+            Assert.AreEqual(0, engine.TurnCount);
+        }
+
+        [Test]
+        public void TurnCount_IncrementsPerEndTurn()
+        {
+            var board  = Board.CreateRectangle(3, 1);
+            var player = new Piece("P", Team.Player, 5, 1, 1, 1, 10) { Coords = new Axial(0, 0) };
+            var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1)  { Coords = new Axial(2, 0) };
+            var engine = new CombatEngine(board, new[] { player, enemy });
+
+            engine.Pass(); // EndTurn #1
+            Assert.AreEqual(1, engine.TurnCount);
+            engine.Pass(); // EndTurn #2
+            Assert.AreEqual(2, engine.TurnCount);
+        }
+
+        [Test]
+        public void TurnCount_IsGlobalCounter()
+        {
+            var board = Board.CreateRectangle(4, 1);
+            var p1 = new Piece("P1", Team.Player, 5, 1, 1, 2, 10) { Coords = new Axial(0, 0) };
+            var p2 = new Piece("P2", Team.Player, 5, 1, 1, 1, 8)  { Coords = new Axial(1, 0) };
+            var e1 = new Piece("E1", Team.Enemy,  5, 1, 1, 2, 10) { Coords = new Axial(3, 0) };
+            var e2 = new Piece("E2", Team.Enemy,  5, 1, 1, 1, 6)  { Coords = new Axial(2, 0) };
+            var engine = new CombatEngine(board, new[] { p1, p2, e1, e2 });
+
+            // 4 pieces → 4 passes = 4 turns
+            engine.Pass(); Assert.AreEqual(1, engine.TurnCount);
+            engine.Pass(); Assert.AreEqual(2, engine.TurnCount);
+            engine.Pass(); Assert.AreEqual(3, engine.TurnCount);
+            engine.Pass(); Assert.AreEqual(4, engine.TurnCount);
+        }
+
+        // ── OnTurnStart ──────────────────────────────────────────────────────
+
+        [Test]
+        public void OnTurnStart_FiresAtStartOfEachTurn()
+        {
+            var board  = Board.CreateRectangle(3, 1);
+            var player = new Piece("P", Team.Player, 5, 1, 1, 1, 10) { Coords = new Axial(0, 0) };
+            var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1)  { Coords = new Axial(2, 0) };
+            var engine = new CombatEngine(board, new[] { player, enemy });
+
+            int fires = 0;
+            engine.OnTurnStart += () => fires++;
+
+            engine.Begin(); // turn 1 starts → fires = 1
+            engine.Pass();  // turn 2 starts → fires = 2
+            engine.Pass();  // turn 3 starts → fires = 3
+
+            Assert.AreEqual(3, fires);
+        }
+
+        [Test]
+        public void OnTurnStart_DoesNotFireAfterCombatEnds()
+        {
+            var board       = Board.CreateRectangle(3, 1);
+            var playerQueen = new Piece("PQ", Team.Player, 10, 3, 1, 1, 10, isQueen: true) { Coords = new Axial(0, 0) };
+            var enemyQueen  = new Piece("EQ", Team.Enemy,  1,  3, 1, 1, 5,  isQueen: true) { Coords = new Axial(1, 0) };
+            var engine      = new CombatEngine(board, new[] { playerQueen, enemyQueen });
+
+            int fires = 0;
+            engine.OnTurnStart += () => fires++;
+
+            engine.Begin(); // fires = 1 (turn 1 starts)
+            Assert.AreEqual(1, fires);
+
+            // Player kills enemy queen → game over → EndTurn NOT called
+            engine.Attack(playerQueen, enemyQueen);
+            Assert.IsTrue(engine.IsOver);
+
+            // Subsequent calls are no-ops — OnTurnStart must not fire
+            engine.Pass();
+            engine.Move(playerQueen, new Axial(0, 1));
+
+            Assert.AreEqual(1, fires);
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static (CombatEngine engine, Piece player, Piece enemy) TwoPieces(

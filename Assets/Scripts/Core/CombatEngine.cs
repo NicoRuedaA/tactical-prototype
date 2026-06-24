@@ -33,6 +33,9 @@ namespace Game.Core
         public event Action<Piece>                           TurnChanged;
         public event Action<Team>                            CombatEnded;
         public event Action<Piece, IAbilityData, IReadOnlyList<Piece>> AbilityUsed;
+        public event Action                                  OnTurnStart;
+
+        public int TurnCount { get; private set; }
 
         public CombatEngine(Board board, IEnumerable<Piece> pieces)
         {
@@ -47,7 +50,11 @@ namespace Game.Core
             Turns = new TurnSystem(_pieces);
         }
 
-        public void Begin() => TurnChanged?.Invoke(Current);
+        public void Begin()
+        {
+            OnTurnStart?.Invoke();
+            TurnChanged?.Invoke(Current);
+        }
 
         // ── Queries ──────────────────────────────────────────────────────────
 
@@ -140,6 +147,9 @@ namespace Game.Core
             Turns.Advance();
 
             ReEvaluateAuras();
+
+            TurnCount++;
+            OnTurnStart?.Invoke();
 
             if (!IsOver)
                 TriggerPassives(Current, PassiveTrigger.OnTurnStart);
