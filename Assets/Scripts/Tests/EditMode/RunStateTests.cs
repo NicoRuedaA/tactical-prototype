@@ -1,0 +1,320 @@
+using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework;
+using Game.Core;
+
+namespace Game.Core.Tests
+{
+    public class RunStateTests
+    {
+        private static Piece MakePiece(string id, int hp = 5, bool isQueen = false)
+        {
+            return new Piece(id, Team.Player, hp, 1, 1, 1, 10, isQueen: isQueen, name: id);
+        }
+
+        private static Piece MakeEnemy(string id, int hp = 5)
+        {
+            return new Piece(id, Team.Enemy, hp, 1, 1, 1, 5, name: id);
+        }
+
+        // ── Constructor ───────────────────────────────────────────────────────
+
+        [Test]
+        public void Constructor_StoresPieces()
+        {
+            var pieces = new[] { MakePiece("p1"), MakePiece("p2") };
+            var state = new RunState(pieces);
+
+            Assert.AreEqual(2, state.Pieces.Count);
+            Assert.AreEqual("p1", state.Pieces[0].Id);
+            Assert.AreEqual("p2", state.Pieces[1].Id);
+        }
+
+        [Test]
+        public void Constructor_ThrowsOnNullPieces()
+        {
+            Assert.That(() => new RunState(null), Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void Constructor_ThrowsOnEmptyPieces()
+        {
+            Assert.That(() => new RunState(new List<Piece>()), Throws.ArgumentException);
+        }
+
+        [Test]
+        public void Constructor_HasDefaultTotalCombats()
+        {
+            var state = new RunState(new[] { MakePiece("p1") });
+            Assert.AreEqual(3, state.TotalCombats);
+        }
+
+        [Test]
+        public void Constructor_StartsAtCombatIndexZero()
+        {
+            var state = new RunState(new[] { MakePiece("p1") });
+            Assert.AreEqual(0, state.CombatIndex);
+        }
+
+        // ── AdvanceCombat ─────────────────────────────────────────────────────
+
+        [Test]
+        public void AdvanceCombat_IncrementsIndex()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+
+            Assert.AreEqual(0, state.CombatIndex);
+            state.AdvanceCombat();
+            Assert.AreEqual(1, state.CombatIndex);
+            state.AdvanceCombat();
+            Assert.AreEqual(2, state.CombatIndex);
+        }
+
+        [Test]
+        public void AdvanceCombat_ReturnsTrueWhenMoreCombatsRemain()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+
+            Assert.IsTrue(state.AdvanceCombat()); // 0 → 1, still more
+            Assert.IsTrue(state.AdvanceCombat()); // 1 → 2, still more
+        }
+
+        [Test]
+        public void AdvanceCombat_ReturnsFalseOnLastCombat()
+        {
+            var state = new RunState(new[] { MakePiece("p1") }, totalCombats: 3);
+
+            state.AdvanceCombat(); // 0 → 1
+            state.AdvanceCombat(); // 1 → 2
+            Assert.IsFalse(state.AdvanceCombat()); // 2 → 3, at or past total
+        }
+
+        // ── IsPlayerDead ──────────────────────────────────────────────────────
+
+        [Test]
+        public void IsPlayerDead_FalseWhenAllAlive()
+        {
+            var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
+            var state = new RunState(pieces);
+
+            Assert.IsFalse(state.IsPlayerDead);
+        }
+
+        [Test]
+        public void IsPlayerDead_TrueWhenAllDead()
+        {
+            var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
+            var state = new RunState(pieces);
+
+            foreach (var p in state.Pieces)
+                p.TakeDamage(99);
+
+            Assert.IsTrue(state.IsPlayerDead);
+        }
+
+        [Test]
+        public void IsPlayerDead_TrueWhenSinglePieceDead()
+        {
+            var piece = MakePiece("p1", hp: 5);
+            var state = new RunState(new[] { piece });
+
+            piece.TakeDamage(99);
+
+            Assert.IsTrue(state.IsPlayerDead);
+        }
+
+        [Test]
+        public void IsPlayerDead_FalseWhenSomeAlive()
+        {
+            var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
+            var state = new RunState(pieces);
+
+            state.Pieces[0].TakeDamage(99); // p1 dead, p2 alive
+
+            Assert.IsFalse(state.IsPlayerDead);
+        }
+
+        // ── GetAlivePlayerPieces ──────────────────────────────────────────────
+
+        [Test]
+        public void GetAlivePlayerPieces_ReturnsAllWhenNoneDead()
+        {
+            var pieces = new[] { MakePiece("p1"), MakePiece("p2") };
+            var state = new RunState(pieces);
+
+            var alive = state.GetAlivePlayerPieces().ToList();
+
+            Assert.AreEqual(2, alive.Count);
+        }
+
+        [Test]
+        public void GetAlivePlayerPieces_FiltersDeadPieces()
+        {
+            var pieces = new[] { MakePiece("p1", hp: 5), MakePiece("p2", hp: 5) };
+            var state = new RunState(pieces);
+
+            state.Pieces[0].TakeDamage(99); // p1 dead
+
+            var alive = state.GetAlivePlayerPieces().ToList();
+
+            Assert.AreEqual(1, alive.Count);
+            Assert.AreEqual("p2", alive[0].Id);
+        }
+
+        [Test]
+        public void GetAlivePlayerPieces_ReturnsEmptyWhenAllDead()
+        {
+            var pieces = new[] { MakePiece("p1", hp: 5) };
+            var state = new RunState(pieces);
+
+            state.Pieces[0].TakeDamage(99);
+
+            Assert.IsEmpty(state.GetAlivePlayerPieces());
+        }
+
+        // ── AddAbility ────────────────────────────────────────────────────────
+
+        [Test]
+        public void AddAbility_StoresAbilityOnPiece()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces);
+            var ability = new TestAbilityStub { DisplayName = "Fireball" };
+
+            state.AddAbility("p1", ability);
+
+            Assert.AreEqual(1, state.Pieces[0].Abilities.Count);
+            Assert.AreEqual("Fireball", state.Pieces[0].Abilities[0].DisplayName);
+        }
+
+        [Test]
+        public void AddAbility_NullIsNoOp()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces);
+
+            state.AddAbility("p1", null);
+
+            Assert.AreEqual(0, state.Pieces[0].Abilities.Count);
+        }
+
+        [Test]
+        public void AddAbility_ThrowsOnMissingPiece()
+        {
+            var state = new RunState(new[] { MakePiece("p1") });
+            var ability = new TestAbilityStub();
+
+            Assert.That(() => state.AddAbility("nonexistent", ability), Throws.ArgumentException);
+        }
+
+        // ── ApplyStatBoost ────────────────────────────────────────────────────
+
+        [Test]
+        public void ApplyStatBoost_Damage_IncreasesEffectiveDamage()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces);
+
+            state.ApplyStatBoost("p1", StatType.Damage, 3);
+
+            Assert.AreEqual(4, state.Pieces[0].EffectiveDamage); // 1 + 3
+        }
+
+        [Test]
+        public void ApplyStatBoost_AttackRange_IncreasesEffectiveAttackRange()
+        {
+            var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
+            var state = new RunState(new[] { piece });
+
+            state.ApplyStatBoost("p1", StatType.AttackRange, 2);
+
+            Assert.AreEqual(3, piece.EffectiveAttackRange); // 1 + 2
+        }
+
+        [Test]
+        public void ApplyStatBoost_MoveRange_IncreasesEffectiveMoveRange()
+        {
+            var piece = new Piece("p1", Team.Player, 5, 1, 1, 1, 10);
+            var state = new RunState(new[] { piece });
+
+            state.ApplyStatBoost("p1", StatType.MoveRange, 1);
+
+            Assert.AreEqual(2, piece.EffectiveMoveRange); // 1 + 1
+        }
+
+        // ── ApplyMaxHpBoost ───────────────────────────────────────────────────
+
+        [Test]
+        public void ApplyMaxHpBoost_IncreasesMaxHpAndHeals()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
+            piece.TakeDamage(4);
+            var state = new RunState(new[] { piece });
+
+            state.ApplyMaxHpBoost("p1", 3);
+
+            Assert.AreEqual(13, piece.EffectiveMaxHp); // 10 + 3
+            Assert.AreEqual(9, piece.Hp);              // (10-4) + 3
+        }
+
+        [Test]
+        public void ApplyMaxHpBoost_WithFullHp_GrantsExtraHp()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
+            var state = new RunState(new[] { piece });
+
+            state.ApplyMaxHpBoost("p1", 5);
+
+            Assert.AreEqual(15, piece.EffectiveMaxHp);
+            Assert.AreEqual(15, piece.Hp); // 10 + 5 (healed by same amount)
+        }
+
+        [Test]
+        public void ApplyMaxHpBoost_ThrowsOnMissingPiece()
+        {
+            var state = new RunState(new[] { MakePiece("p1") });
+
+            Assert.That(() => state.ApplyMaxHpBoost("nonexistent", 5), Throws.ArgumentException);
+        }
+
+        // ── PlacePiece ────────────────────────────────────────────────────────
+
+        [Test]
+        public void PlacePiece_UpdatesCoords()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces);
+
+            state.PlacePiece("p1", new Axial(2, 3));
+
+            Assert.AreEqual(new Axial(2, 3), state.Pieces[0].Coords);
+        }
+
+        [Test]
+        public void PlacePiece_ThrowsOnMissingPiece()
+        {
+            var state = new RunState(new[] { MakePiece("p1") });
+
+            Assert.That(() => state.PlacePiece("nonexistent", new Axial(0, 0)), Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// Minimal IAbilityData stub for RunState tests.
+        /// </summary>
+        private class TestAbilityStub : IAbilityData
+        {
+            public string DisplayName { get; set; } = "Test";
+            public AbilityType AbilityType { get; set; } = AbilityType.Active;
+            public int ManaCost { get; set; } = 0;
+            public int ActiveRange { get; set; } = 1;
+            public PassiveTrigger Trigger { get; set; } = PassiveTrigger.OnHit;
+            public EffectType EffectType { get; set; } = EffectType.Damage;
+            public int EffectValue { get; set; } = 1;
+            public StatType StatToModify { get; set; } = StatType.Damage;
+            public int AreaRadius { get; set; } = 0;
+            public AffectsTeam AffectsTeam { get; set; } = AffectsTeam.Enemies;
+            public DurationType DurationType { get; set; } = DurationType.FixedTurns;
+            public int DurationTurns { get; set; } = 1;
+        }
+    }
+}
