@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.4 — Map System (2026-06-24)
+
+### Added
+- **MapNodeType enum + MapNode class** (Game.Core): node types (Combat, Elite, Boss, Rest, Shop) with identity, grid position, and adjacency tracking.
+- **MapGraph** (Game.Core): graph data structure with DFS path validation, node visitation, available node queries, and completion detection.
+- **MapGenerator** (Game.Core): StS-style procedural graph generation — rows of branching nodes, minimum 3 distinct paths to Boss, retry on invalid graphs.
+- **MapView** (Unity): scrollable UI with colored node buttons by type (blue/orange/red/green/yellow), LineRenderer connection paths, disabled non-available nodes.
+- **RunManager.MapPhase**: new state machine phase integrating Map→Combat→Reward→Map loop.
+- **OnNodeSelected()**: dispatches to Combat/Rest/Shop scenes based on node type.
+- **Piece.HealPercentEffective()**: percentage healing from EffectiveMaxHp (for RestNode).
+- **Map.unity**: new scene at build index 3 with camera, canvas, event system.
+- **SceneSetup.CreateMapScene()**: editor script for full ScrollRect/Content wiring.
+
+### Changed
+- **RunState**: replaced linear `CombatIndex`/`TotalCombats` with `MapGraph` + `CurrentNodeId` for graph-based run progression.
+- **RunState.AdvanceCombat()**: now walks the graph to the next available node.
+- **Piece.Heal()**: fixed to clamp at `EffectiveMaxHp` instead of base `MaxHp`.
+
+### Tests
+- 35 new tests (MapGraph, MapGenerator, Piece.HealPercent, RunState graph navigation)
+- All 82 tests passing (47 original + 35 new)
+
+---
+
 ## v0.3 — Run Loop (2026-06-24)
 
 ### Added
