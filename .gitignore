@@ -32,3 +32,10 @@ Thumbs.db
 
 # Misc
 *.log
+
+# SDD / OpenSpec artifacts (not for version control unless explicitly shared)
+openspec/
+.atl/
+
+# Test results
+TestResults.xml
