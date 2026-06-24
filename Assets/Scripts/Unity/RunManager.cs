@@ -5,6 +5,17 @@ using UnityEngine.SceneManagement;
 using Game.Core;
 
 /// <summary>
+/// Serializable entry defining one enemy team roster for a specific node type.
+/// Used by <see cref="RunManager.enemyTeamPools"/>.
+/// </summary>
+[System.Serializable]
+public struct TeamRoster
+{
+    public MapNodeType   nodeType;
+    public CharacterData[] enemies;
+}
+
+/// <summary>
 /// DontDestroyOnLoad singleton that orchestrates the full run loop:
 /// Map → Combat → Reward → Map → ... → Boss → Victory.
 ///
@@ -18,7 +29,13 @@ public sealed class RunManager : MonoBehaviour
     [Header("Player Team (initial roster)")]
     public CharacterData[] PlayerTeam;
 
-    [Header("Enemy Teams (per-combat config)")]
+    [Header("Enemy Team Pools (keyed by MapNodeType)")]
+    [Tooltip("Primary pool — each entry provides a team roster for its node type. " +
+             "Combat entries cycle through on successive wins.")]
+    public TeamRoster[] enemyTeamPools;
+
+    [Header("Legacy Fallback (used when enemyTeamPools is empty)")]
+    [Tooltip("Legacy per-index combat teams. Only used as fallback when enemyTeamPools has no Combat entries.")]
     public CharacterData[] EnemyTeamCombat0;
     public CharacterData[] EnemyTeamCombat1;
     public CharacterData[] EnemyTeamCombat2;
@@ -52,8 +69,14 @@ public sealed class RunManager : MonoBehaviour
     /// <summary>Current phase of the run state machine.</summary>
     public RunPhase CurrentPhase { get; private set; } = RunPhase.None;
 
+    /// <summary>True when the last run ended in victory (boss cleared).</summary>
+    public bool LastRunWasVictory { get; private set; }
+
     /// <summary>Increments each time the player clears a combat. Used to index enemy team config.</summary>
     private int _currentCombatIndex;
+
+    /// <summary>Type of the node the player most recently selected on the map.</summary>
+    private MapNodeType _currentNodeType;
 
     private void Awake()
     {
@@ -140,6 +163,7 @@ public sealed class RunManager : MonoBehaviour
         // Visit the node
         CurrentRun.VisitNode(nodeId);
         var node = CurrentRun.Graph.Nodes[nodeId];
+        _currentNodeType = node.Type;
         Debug.Log($"Node selected: {nodeId} ({node.Type})");
 
         switch (node.Type)
@@ -166,8 +190,8 @@ public sealed class RunManager : MonoBehaviour
 
     /// <summary>
     /// Called by CombatRunner when combat ends.
-    /// Player victory always loads Reward scene. Defeat restarts.
-    /// Victory detection (isComplete) happens in OnRewardApplied.
+    /// Player victory always loads Reward scene.
+    /// Defeat loads the GameOver scene with loss outcome.
     /// </summary>
     public void OnCombatEnded(Team winner)
     {
@@ -184,8 +208,10 @@ public sealed class RunManager : MonoBehaviour
         else
         {
             CurrentPhase = RunPhase.Defeat;
+            LastRunWasVictory = false;
             Debug.Log("<color=red>=== RUN DEFEATED ===</color>");
-            RestartRun();
+            SceneManager.sceneLoaded += OnGameOverSceneLoaded;
+            SceneManager.LoadScene("GameOver");
         }
     }
 
@@ -201,6 +227,7 @@ public sealed class RunManager : MonoBehaviour
         if (CurrentRun.Graph.IsComplete)
         {
             CurrentPhase = RunPhase.Victory;
+            LastRunWasVictory = true;
             Debug.Log("<color=yellow>=== RUN VICTORY === Boss defeated!</color>");
             EndRun();
         }
@@ -212,9 +239,45 @@ public sealed class RunManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns the enemy team composition for a given combat index.
+    /// Returns the enemy team composition for the given node type.
+    /// Uses the primary <see cref="enemyTeamPools"/> array.
+    /// Falls back to legacy per-index arrays for Combat type when pools are empty.
+    /// </summary>
+    public CharacterData[] GetEnemyTeam(MapNodeType nodeType)
+    {
+        if (enemyTeamPools != null && enemyTeamPools.Length > 0)
+        {
+            var matches = enemyTeamPools.Where(p => p.nodeType == nodeType).ToArray();
+            if (matches.Length > 0)
+            {
+                if (nodeType == MapNodeType.Combat)
+                {
+                    // Cycle through combat entries per cleared encounter
+                    int idx = _currentCombatIndex % matches.Length;
+                    return matches[idx].enemies;
+                }
+
+                // Boss / Elite: return first matching entry
+                return matches[0].enemies;
+            }
+        }
+
+        // ── Backward compat fallback ──────────────────────────────────────
+        if (nodeType == MapNodeType.Combat)
+            return GetLegacyEnemyTeam(_currentCombatIndex);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Legacy index-based lookup — preserved for backward compatibility.
     /// </summary>
     public CharacterData[] GetEnemyTeam(int combatIndex)
+    {
+        return GetLegacyEnemyTeam(combatIndex);
+    }
+
+    private CharacterData[] GetLegacyEnemyTeam(int combatIndex)
     {
         return combatIndex switch
         {
@@ -223,6 +286,19 @@ public sealed class RunManager : MonoBehaviour
             2 => EnemyTeamCombat2,
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Called by DefeatScreen to return to the main menu.
+    /// Destroys the singleton and loads SampleScene so a new run can begin.
+    /// </summary>
+    public void RestartRun()
+    {
+        CurrentRun = null;
+        CurrentPhase = RunPhase.None;
+        _currentCombatIndex = 0;
+        Destroy(gameObject);
+        SceneManager.LoadScene("SampleScene");
     }
 
     private void ApplyRestHeal()
@@ -238,17 +314,11 @@ public sealed class RunManager : MonoBehaviour
 
     private void EndRun()
     {
+        LastRunWasVictory = true;
         CurrentRun = null;
-        CurrentPhase = RunPhase.None;
-        SceneManager.LoadScene("SampleScene");
-    }
-
-    private void RestartRun()
-    {
-        CurrentRun = null;
-        CurrentPhase = RunPhase.None;
-        Destroy(gameObject);
-        SceneManager.LoadScene("SampleScene");
+        CurrentPhase = RunPhase.Victory;
+        SceneManager.sceneLoaded += OnGameOverSceneLoaded;
+        SceneManager.LoadScene("GameOver");
     }
 
     // ── Scene load handlers ──────────────────────────────────────────────────
@@ -266,7 +336,7 @@ public sealed class RunManager : MonoBehaviour
             return;
         }
 
-        runner.Initialize(CurrentRun, _currentCombatIndex);
+        runner.Initialize(CurrentRun, _currentNodeType);
         runner.CombatEnded += OnCombatEnded;
     }
 
@@ -278,6 +348,16 @@ public sealed class RunManager : MonoBehaviour
 
         // RewardScreen finds RunManager.Instance on its own via OnEnable
         Debug.Log("Reward scene loaded — awaiting player selection.");
+    }
+
+    private void OnGameOverSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        SceneManager.sceneLoaded -= OnGameOverSceneLoaded;
+
+        if (scene.name != "GameOver") return;
+
+        Debug.Log($"GameOver scene loaded — outcome: {(LastRunWasVictory ? "VICTORY" : "DEFEAT")}");
+        // DefeatScreen finds RunManager.Instance on its own via OnEnable
     }
 
     private void OnMapSceneLoaded(Scene scene, LoadSceneMode mode)

@@ -14,10 +14,16 @@ using UnityEngine.UI;
 /// </summary>
 public static class SceneSetup
 {
+    [MenuItem("Tools/TacticalRogue/Create GameOver Scene")]
+    public static void CreateGameOverSceneMenu()
+    {
+        CreateGameOverScene();
+    }
     private const string CombatScenePath = "Assets/Scenes/Combat.unity";
     private const string RewardScenePath = "Assets/Scenes/Reward.unity";
     private const string MapScenePath = "Assets/Scenes/Map.unity";
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
+    private const string GameOverScenePath = "Assets/Scenes/GameOver.unity";
 
     public static void CreateRewardScene()
     {
@@ -310,6 +316,122 @@ public static class SceneSetup
         UpdateBuildSettings();
     }
 
+    public static void CreateGameOverScene()
+    {
+        // Check if GameOver scene already exists
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(GameOverScenePath) != null)
+        {
+            Debug.Log("GameOver scene already exists. Updating...");
+            EditorSceneManager.OpenScene(GameOverScenePath, OpenSceneMode.Single);
+        }
+        else
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            scene.name = "GameOver";
+        }
+
+        // Find or create root objects
+        var rootObjects = SceneManager.GetActiveScene().GetRootGameObjects();
+
+        // Ensure Camera exists
+        bool hasCamera = false;
+        bool hasEventSystem = false;
+        foreach (var go in rootObjects)
+        {
+            if (go.GetComponent<Camera>() != null) hasCamera = true;
+            if (go.GetComponent<UnityEngine.EventSystems.EventSystem>() != null) hasEventSystem = true;
+        }
+
+        if (!hasCamera)
+        {
+            var camGO = new GameObject("Main Camera");
+            var cam = camGO.AddComponent<Camera>();
+            camGO.tag = "MainCamera";
+            cam.orthographic = true;
+            cam.orthographicSize = 5;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.1f, 0.1f, 0.1f);
+        }
+
+        // Ensure EventSystem
+        if (!hasEventSystem)
+        {
+            var esGO = new GameObject("EventSystem");
+            esGO.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            esGO.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
+        // Create Canvas
+        var canvasGO = new GameObject("Canvas");
+        var canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasGO.AddComponent<CanvasScaler>();
+        canvasGO.AddComponent<GraphicRaycaster>();
+
+        // Create DefeatScreen GameObject
+        var defeatGO = new GameObject("DefeatScreen");
+        defeatGO.transform.SetParent(canvasGO.transform, false);
+        var defeatScreen = defeatGO.AddComponent<DefeatScreen>();
+
+        // Title text (VICTORY / DEFEAT)
+        var titleGO = new GameObject("TitleText");
+        titleGO.transform.SetParent(canvasGO.transform, false);
+        var titleText = titleGO.AddComponent<Text>();
+        titleText.text = "GAME OVER";
+        titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        titleText.fontSize = 64;
+        titleText.fontStyle = FontStyle.Bold;
+        titleText.alignment = TextAnchor.MiddleCenter;
+        titleText.color = Color.white;
+        var titleRT = titleGO.GetComponent<RectTransform>();
+        titleRT.anchorMin = new Vector2(0, 0.6f);
+        titleRT.anchorMax = new Vector2(1, 0.8f);
+        titleRT.pivot = new Vector2(0.5f, 0.5f);
+        titleRT.sizeDelta = Vector2.zero;
+        defeatScreen.TitleText = titleText;
+
+        // Main Menu button
+        var btnGO = new GameObject("MainMenuButton");
+        btnGO.transform.SetParent(canvasGO.transform, false);
+        var btnRT = btnGO.AddComponent<RectTransform>();
+        btnRT.anchorMin = new Vector2(0.5f, 0.5f);
+        btnRT.anchorMax = new Vector2(0.5f, 0.5f);
+        btnRT.pivot = new Vector2(0.5f, 0.5f);
+        btnRT.sizeDelta = new Vector2(200, 50);
+        btnRT.anchoredPosition = new Vector2(0, -50);
+
+        var btnImg = btnGO.AddComponent<Image>();
+        btnImg.color = new Color(0.3f, 0.3f, 0.5f);
+
+        var btnTextGO = new GameObject("Text");
+        btnTextGO.transform.SetParent(btnGO.transform, false);
+        var btnText = btnTextGO.AddComponent<Text>();
+        btnText.text = "Main Menu";
+        btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        btnText.fontSize = 28;
+        btnText.alignment = TextAnchor.MiddleCenter;
+        btnText.color = Color.white;
+        var btnTextRT = btnTextGO.GetComponent<RectTransform>();
+        btnTextRT.anchorMin = Vector2.zero;
+        btnTextRT.anchorMax = Vector2.one;
+        btnTextRT.sizeDelta = Vector2.zero;
+
+        var button = btnGO.AddComponent<Button>();
+        button.targetGraphic = btnImg;
+        var colors = button.colors;
+        colors.highlightedColor = new Color(0.5f, 0.5f, 0.7f);
+        button.colors = colors;
+
+        defeatScreen.MainMenuButton = button;
+
+        // Save scene
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), GameOverScenePath);
+        Debug.Log($"GameOver scene created at: {GameOverScenePath}");
+
+        // Update Build Settings
+        UpdateBuildSettings();
+    }
+
     private static void UpdateBuildSettings()
     {
         var buildScenes = EditorBuildSettings.scenes;
@@ -319,6 +441,7 @@ public static class SceneSetup
         bool hasCombat = false;
         bool hasReward = false;
         bool hasMap = false;
+        bool hasGameOver = false;
 
         foreach (var s in buildScenes)
         {
@@ -326,6 +449,7 @@ public static class SceneSetup
             if (s.path == CombatScenePath) hasCombat = true;
             if (s.path == RewardScenePath) hasReward = true;
             if (s.path == MapScenePath) hasMap = true;
+            if (s.path == GameOverScenePath) hasGameOver = true;
         }
 
         var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>();
@@ -336,10 +460,14 @@ public static class SceneSetup
         if (hasCombat || AssetDatabase.LoadAssetAtPath<SceneAsset>(CombatScenePath) != null)
             scenes.Add(new EditorBuildSettingsScene(CombatScenePath, true));
         // Reward at index 2
-        scenes.Add(new EditorBuildSettingsScene(RewardScenePath, true));
+        if (hasReward || AssetDatabase.LoadAssetAtPath<SceneAsset>(RewardScenePath) != null)
+            scenes.Add(new EditorBuildSettingsScene(RewardScenePath, true));
         // Map at index 3
         if (hasMap || AssetDatabase.LoadAssetAtPath<SceneAsset>(MapScenePath) != null)
             scenes.Add(new EditorBuildSettingsScene(MapScenePath, true));
+        // GameOver at index 4
+        if (hasGameOver || AssetDatabase.LoadAssetAtPath<SceneAsset>(GameOverScenePath) != null)
+            scenes.Add(new EditorBuildSettingsScene(GameOverScenePath, true));
 
         EditorBuildSettings.scenes = scenes.ToArray();
         Debug.Log($"Build Settings updated: {scenes.Count} scenes registered.");

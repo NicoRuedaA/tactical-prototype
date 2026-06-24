@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Game.Core;
 
@@ -8,7 +7,7 @@ using Game.Core;
 /// Thin Unity driver for the combat core.
 ///
 /// Two entry modes:
-/// 1. Run loop:  Initialize(RunState, int) — called by RunManager after scene load.
+/// 1. Run loop:  Initialize(RunState, MapNodeType) — called by RunManager after scene load.
 /// 2. Fallback:  InitializeDemo() — hardcoded setup for direct scene editing.
 ///
 /// Awake() is intentionally empty — the entry point is always explicit.
@@ -35,6 +34,7 @@ public class CombatRunner : MonoBehaviour
     private CombatEngine _engine;
     private bool _initialized;
     private RunState _runState;
+    private Dictionary<string, IEnemyAI> _pieceAIs = new Dictionary<string, IEnemyAI>();
 
     public CombatEngine Engine => _engine;
 
@@ -45,11 +45,11 @@ public class CombatRunner : MonoBehaviour
 
     /// <summary>
     /// Primary entry point for run loop. Called by RunManager after scene load.
-    /// Creates board and pieces from RunState + enemy team data, wires events,
-    /// and begins combat. Force-disables AutoPlayBothSides so the player controls
-    /// their pieces while enemy AI still auto-plays.
+    /// Creates board and pieces from RunState + enemy team keyed by node type,
+    /// assigns per-type AI (BossEnemyAI, EliteEnemyAI, or DefaultEnemyAI),
+    /// wires events, and begins combat.
     /// </summary>
-    public void Initialize(RunState runState, int combatIndex)
+    public void Initialize(RunState runState, MapNodeType nodeType)
     {
         if (_initialized) return;
         _initialized = true;
@@ -71,11 +71,29 @@ public class CombatRunner : MonoBehaviour
             idx++;
         }
 
-        // Enemy pieces created fresh from RunManager's enemy team config
-        var enemyData = RunManager.Instance.GetEnemyTeam(combatIndex);
+        // Enemy pieces created from RunManager's per-type pools
+        var enemyData = RunManager.Instance.GetEnemyTeam(nodeType);
         for (int i = 0; i < enemyData.Length; i++)
         {
-            var enemy = enemyData[i].CreatePiece($"E_{combatIndex}_{i}", Team.Enemy, EnemyStartCoords(i));
+            var data = enemyData[i];
+            var enemy = data.CreatePiece($"E_{nodeType}_{i}", Team.Enemy, EnemyStartCoords(i));
+
+            // ── AI dispatch per data type ──────────────────────────────
+            IEnemyAI ai = null;
+            if (data is BossData bossData)
+            {
+                ai = new BossEnemyAI(enemy, bossData.phaseAbility,
+                    bossData.damageBuff, bossData.phaseThresholdPercent);
+            }
+            else if (data is EliteData)
+            {
+                ai = new EliteEnemyAI();
+            }
+            // else: ai stays null → TakeAiTurn falls back to DefaultEnemyAI
+
+            if (ai != null)
+                _pieceAIs[enemy.Id] = ai;
+
             pieces.Add(enemy);
         }
 
@@ -157,10 +175,22 @@ public class CombatRunner : MonoBehaviour
             Invoke(nameof(TakeAiTurn), TurnDelay);
     }
 
+    /// <summary>
+    /// Dispatches AI for the current piece.
+    /// Uses stored <see cref="IEnemyAI"/> when available (Boss, Elite).
+    /// Falls back to static <see cref="DefaultEnemyAI"/> for standard enemies.
+    /// </summary>
     private void TakeAiTurn()
     {
-        if (!_engine.IsOver)
-            EnemyTurnAI.TakeTurn(_engine);
+        if (_engine.IsOver) return;
+
+        var current = _engine.Current;
+        if (current == null) return;
+
+        if (_pieceAIs.TryGetValue(current.Id, out var ai) && ai != null)
+            ai.TakeTurn(_engine);
+        else
+            DefaultEnemyAI.TakeTurn(_engine);
     }
 
     // ── Coordinate helpers ────────────────────────────────────────────────────
