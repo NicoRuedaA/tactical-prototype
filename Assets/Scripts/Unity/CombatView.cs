@@ -221,7 +221,8 @@ public class CombatView : MonoBehaviour
         subRT.sizeDelta = new Vector2(0, 60);
         subRT.anchoredPosition = new Vector2(0, -80);
 
-        DontDestroyOnLoad(canvasGO);
+        // NOTE: Intentionally NOT calling DontDestroyOnLoad — the banner is
+        // per-combat and must be destroyed when the scene unloads.
     }
 
     public void SetHighlightForCoord(Axial coord, TileHighlight state)
