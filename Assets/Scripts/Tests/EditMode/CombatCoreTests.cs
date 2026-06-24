@@ -456,6 +456,37 @@ namespace Game.Core.Tests
             Assert.AreEqual(15, piece.Hp);
         }
 
+        // ── DefaultEnemyAI ──────────────────────────────────────────────────
+
+        [Test]
+        public void DefaultEnemyAI_AttacksWhenTargetInRange()
+        {
+            var board       = Board.CreateRectangle(3, 1);
+            var enemy       = new Piece("E", Team.Enemy,  5, 2, 1, 1, 10) { Coords = new Axial(0, 0) };
+            var playerQueen = new Piece("P", Team.Player, 5, 2, 1, 1, 1,  isQueen: true) { Coords = new Axial(1, 0) };
+            var engine      = new CombatEngine(board, new[] { enemy, playerQueen });
+            Assert.AreEqual(enemy, engine.Current);
+
+            DefaultEnemyAI.TakeTurn(engine);
+
+            Assert.AreEqual(playerQueen.MaxHp - enemy.Damage, playerQueen.Hp);
+        }
+
+        [Test]
+        public void DefaultEnemyAI_StepsCloserWhenOutOfRange()
+        {
+            var board  = Board.CreateRectangle(6, 1);
+            var enemy  = new Piece("E", Team.Enemy,  5, 2, 1, 2, 10) { Coords = new Axial(0, 0) };
+            var player = new Piece("P", Team.Player, 5, 2, 1, 1, 1)  { Coords = new Axial(5, 0) };
+            var engine = new CombatEngine(board, new[] { enemy, player });
+
+            int before = Axial.Distance(enemy.Coords, player.Coords);
+            DefaultEnemyAI.TakeTurn(engine);
+            int after  = Axial.Distance(enemy.Coords, player.Coords);
+
+            Assert.Less(after, before);
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static (CombatEngine engine, Piece player, Piece enemy) TwoPieces(
