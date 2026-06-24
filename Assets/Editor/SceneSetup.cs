@@ -5,13 +5,18 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Batch-mode scene setup tool. Creates Reward.unity and registers all scenes in Build Settings.
-/// Run via: Unity -batchMode -executeMethod SceneSetup.CreateRewardScene
+/// Batch-mode scene setup tool. Creates Reward.unity and Map.unity, and registers all
+/// scenes in Build Settings. Run via:
+///   Unity -batchMode -executeMethod SceneSetup.CreateRewardScene
+///   Unity -batchMode -executeMethod SceneSetup.CreateMapScene
+///
+/// Build scene order: SampleScene(0), Combat(1), Reward(2), Map(3).
 /// </summary>
 public static class SceneSetup
 {
     private const string CombatScenePath = "Assets/Scenes/Combat.unity";
     private const string RewardScenePath = "Assets/Scenes/Reward.unity";
+    private const string MapScenePath = "Assets/Scenes/Map.unity";
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
 
     public static void CreateRewardScene()
@@ -159,6 +164,152 @@ public static class SceneSetup
         UpdateBuildSettings();
     }
 
+    public static void CreateMapScene()
+    {
+        // Check if Map scene already exists
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(MapScenePath) != null)
+        {
+            Debug.Log("Map scene already exists. Updating...");
+            EditorSceneManager.OpenScene(MapScenePath, OpenSceneMode.Single);
+        }
+        else
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            scene.name = "Map";
+        }
+
+        var rootObjects = SceneManager.GetActiveScene().GetRootGameObjects();
+
+        // Ensure Camera exists with orthographic settings
+        Camera cam = null;
+        foreach (var go in rootObjects)
+        {
+            cam = go.GetComponent<Camera>();
+            if (cam != null) break;
+        }
+
+        if (cam == null)
+        {
+            var camGO = new GameObject("Main Camera");
+            cam = camGO.AddComponent<Camera>();
+            camGO.tag = "MainCamera";
+            camGO.AddComponent<AudioListener>();
+        }
+        cam.orthographic = true;
+        cam.orthographicSize = 5;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.1f, 0.1f, 0.12f);
+
+        // Ensure EventSystem exists
+        bool hasEventSystem = false;
+        foreach (var go in rootObjects)
+        {
+            if (go.GetComponent<UnityEngine.EventSystems.EventSystem>() != null)
+            {
+                hasEventSystem = true;
+                break;
+            }
+        }
+
+        if (!hasEventSystem)
+        {
+            var esGO = new GameObject("EventSystem");
+            esGO.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            esGO.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
+        // Create Canvas with ScrollRect
+        var canvasGO = new GameObject("Canvas");
+        var canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasGO.AddComponent<CanvasScaler>();
+        canvasGO.AddComponent<GraphicRaycaster>();
+
+        // Create Scroll View (root of the scrollable area)
+        var scrollGO = new GameObject("Scroll View");
+        scrollGO.transform.SetParent(canvasGO.transform, false);
+        var scrollRT = scrollGO.AddComponent<RectTransform>();
+        scrollRT.anchorMin = Vector2.zero;
+        scrollRT.anchorMax = Vector2.one;
+        scrollRT.sizeDelta = Vector2.zero;
+        scrollRT.anchoredPosition = Vector2.zero;
+        scrollRT.pivot = new Vector2(0.5f, 0.5f);
+
+        var scrollRect = scrollGO.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.inertia = true;
+        scrollRect.decelerationRate = 0.135f;
+        scrollRect.scrollSensitivity = 20f;
+        scrollRect.elasticity = 0.1f;
+
+        var scrollImage = scrollGO.AddComponent<Image>();
+        scrollImage.color = new Color(0.1f, 0.1f, 0.12f, 1f);
+
+        // Create Viewport (masks the content)
+        var viewportGO = new GameObject("Viewport");
+        viewportGO.transform.SetParent(scrollGO.transform, false);
+        var viewportRT = viewportGO.AddComponent<RectTransform>();
+        viewportRT.anchorMin = Vector2.zero;
+        viewportRT.anchorMax = Vector2.one;
+        viewportRT.sizeDelta = Vector2.zero;
+        viewportRT.pivot = new Vector2(0.5f, 0.5f);
+        viewportGO.AddComponent<CanvasRenderer>();
+
+        var mask = viewportGO.AddComponent<Mask>();
+        mask.showMaskGraphic = false;
+
+        var viewportImage = viewportGO.AddComponent<Image>();
+        viewportImage.color = Color.white;
+        viewportImage.raycastTarget = false;
+
+        // Create Content (parent for node buttons)
+        var contentGO = new GameObject("Content");
+        contentGO.transform.SetParent(viewportGO.transform, false);
+        var contentRT = contentGO.AddComponent<RectTransform>();
+        contentRT.anchorMin = new Vector2(0, 1);
+        contentRT.anchorMax = new Vector2(1, 1);
+        contentRT.sizeDelta = new Vector2(0, 0);
+        contentRT.pivot = new Vector2(0.5f, 1f);
+        contentRT.anchoredPosition = Vector2.zero;
+
+        var layoutGroup = contentGO.AddComponent<VerticalLayoutGroup>();
+        layoutGroup.childAlignment = TextAnchor.UpperCenter;
+        layoutGroup.childControlWidth = true;
+        layoutGroup.childControlHeight = false;
+        layoutGroup.childScaleWidth = false;
+        layoutGroup.childScaleHeight = false;
+        layoutGroup.childForceExpandWidth = false;
+        layoutGroup.childForceExpandHeight = false;
+        layoutGroup.spacing = 20f;
+        layoutGroup.padding = new RectOffset(50, 50, 50, 50);
+
+        var contentFitter = contentGO.AddComponent<ContentSizeFitter>();
+        contentFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // Wire up ScrollRect references
+        scrollRect.viewport = viewportRT;
+        scrollRect.content = contentRT;
+
+        // Create MapView root GameObject
+        var mapViewGO = new GameObject("MapView");
+        mapViewGO.transform.SetParent(null);
+        mapViewGO.transform.position = Vector3.zero;
+
+        var mapView = mapViewGO.AddComponent<MapView>();
+        mapView.ContentContainer = contentRT;
+        // Note: NodeButtonPrefab and LineRendererPrefab must be assigned in the Inspector
+
+        // Save scene
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), MapScenePath);
+        Debug.Log($"Map scene created at: {MapScenePath}");
+
+        // Update Build Settings
+        UpdateBuildSettings();
+    }
+
     private static void UpdateBuildSettings()
     {
         var buildScenes = EditorBuildSettings.scenes;
@@ -167,12 +318,14 @@ public static class SceneSetup
         bool hasSample = false;
         bool hasCombat = false;
         bool hasReward = false;
+        bool hasMap = false;
 
         foreach (var s in buildScenes)
         {
             if (s.path == SampleScenePath) hasSample = true;
             if (s.path == CombatScenePath) hasCombat = true;
             if (s.path == RewardScenePath) hasReward = true;
+            if (s.path == MapScenePath) hasMap = true;
         }
 
         var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>();
@@ -184,6 +337,9 @@ public static class SceneSetup
             scenes.Add(new EditorBuildSettingsScene(CombatScenePath, true));
         // Reward at index 2
         scenes.Add(new EditorBuildSettingsScene(RewardScenePath, true));
+        // Map at index 3
+        if (hasMap || AssetDatabase.LoadAssetAtPath<SceneAsset>(MapScenePath) != null)
+            scenes.Add(new EditorBuildSettingsScene(MapScenePath, true));
 
         EditorBuildSettings.scenes = scenes.ToArray();
         Debug.Log($"Build Settings updated: {scenes.Count} scenes registered.");
