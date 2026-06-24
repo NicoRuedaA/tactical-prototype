@@ -4,7 +4,9 @@
     "references": [
         "Game.Core",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Game.Data",
+        "Assembly-CSharp"
     ],
     "includePlatforms": [
         "Editor"

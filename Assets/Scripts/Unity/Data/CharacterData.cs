@@ -28,8 +28,10 @@ public class CharacterData : ScriptableObject
     /// <summary>
     /// Factory method — creates a fully wired Piece from this definition.
     /// Called by CombatRunner / CombatView at scene load.
+    /// Override in derived classes (BossData, EliteData) to inject
+    /// phase/passive data at creation time.
     /// </summary>
-    public Piece CreatePiece(string id, Team team, Axial coords)
+    public virtual Piece CreatePiece(string id, Team team, Axial coords)
     {
         var piece = new Piece(
             id, team, maxHp, damage, attackRange, moveRange, initiative,

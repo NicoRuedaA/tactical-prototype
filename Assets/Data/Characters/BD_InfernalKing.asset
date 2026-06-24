@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f67890a1b2c3d4e5f67890, type: 3}
+  m_Name: BD_InfernalKing
+  m_EditorClassIdentifier: 
+  displayName: Infernal King
+  icon: {fileID: 0}
+  maxHp: 30
+  maxMana: 15
+  damage: 5
+  attackRange: 2
+  moveRange: 1
+  initiative: 8
+  isQueen: 1
+  abilities:
+  - {fileID: 11400000, guid: 1ae27e3e85e9cad408bd95c1ee0ebbec, type: 2}
+  phaseAbility: {fileID: 11400000, guid: 992a2305f8784eb459b957a12f8bc1e6, type: 2}
+  damageBuff: 2
+  phaseThresholdPercent: 50
