@@ -82,7 +82,18 @@ namespace Game.Core
         {
             if (amount <= 0 || IsDead) return;
             Hp += amount;
-            if (Hp > MaxHp) Hp = MaxHp;
+            if (Hp > EffectiveMaxHp) Hp = EffectiveMaxHp;
+        }
+
+        /// <summary>
+        /// Heals the piece by <paramref name="percent"/>% of EffectiveMaxHp.
+        /// Only heals alive pieces. Clamps at EffectiveMaxHp.
+        /// </summary>
+        public void HealPercentEffective(int percent)
+        {
+            if (percent <= 0 || IsDead) return;
+            int healAmount = (EffectiveMaxHp * percent) / 100;
+            Heal(healAmount);
         }
 
         // --- Mana ---

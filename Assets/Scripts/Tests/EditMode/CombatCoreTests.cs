@@ -396,6 +396,66 @@ namespace Game.Core.Tests
             Assert.AreEqual(15, piece.EffectiveMaxHp);
         }
 
+        // ── Piece.Heal (EffectiveMaxHp clamp) ─────────────────────────────────
+
+        [Test]
+        public void Heal_ClampsAtEffectiveMaxHp()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 1, 1, 1, 10);
+            piece.AddBonusMaxHp(5); // EffectiveMaxHp = 15
+            piece.TakeDamage(2);    // Hp = 13
+
+            piece.Heal(10); // Would overflow base MaxHp (10) but not EffectiveMaxHp (15)
+
+            Assert.AreEqual(15, piece.Hp); // Clamped at EffectiveMaxHp, not MaxHp
+        }
+
+        // ── Piece.HealPercentEffective ────────────────────────────────────────
+
+        [Test]
+        public void HealPercentEffective_HealsPercentOfEffectiveMaxHp()
+        {
+            var piece = new Piece("p1", Team.Player, 20, 1, 1, 1, 10);
+            piece.TakeDamage(10); // Hp = 10 out of EffectiveMaxHp = 20
+
+            piece.HealPercentEffective(50);
+
+            Assert.AreEqual(20, piece.Hp); // 50% of 20 = 10, 10 + 10 = 20
+        }
+
+        [Test]
+        public void HealPercentEffective_ClampsAtEffectiveMaxHp()
+        {
+            var piece = new Piece("p1", Team.Player, 20, 1, 1, 1, 10);
+            piece.TakeDamage(5); // Hp = 15
+
+            piece.HealPercentEffective(100); // 100% of 20 = 20, 15 + 20 = 35, clamped at 20
+
+            Assert.AreEqual(20, piece.Hp);
+        }
+
+        [Test]
+        public void HealPercentEffective_DeadPiece_NoOp()
+        {
+            var piece = new Piece("p1", Team.Player, 20, 1, 1, 1, 10);
+            piece.TakeDamage(99); // Hp = 0, IsDead = true
+
+            piece.HealPercentEffective(100);
+
+            Assert.AreEqual(0, piece.Hp);
+        }
+
+        [Test]
+        public void HealPercentEffective_ZeroPercent_NoOp()
+        {
+            var piece = new Piece("p1", Team.Player, 20, 1, 1, 1, 10);
+            piece.TakeDamage(5); // Hp = 15
+
+            piece.HealPercentEffective(0);
+
+            Assert.AreEqual(15, piece.Hp);
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static (CombatEngine engine, Piece player, Piece enemy) TwoPieces(
