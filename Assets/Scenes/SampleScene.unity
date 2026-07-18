@@ -423,10 +423,99 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000001}
+  - component: {fileID: 910000002}
+  - component: {fileID: 910000003}
+  m_Layer: 0
+  m_Name: Run Bootstrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4518e34218ccde498b187fb5f3126d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PlayerTeam:
+  - {fileID: 11400000, guid: 3f3aaad6bf0cae6428e999c9f05754c2, type: 2}
+  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
+  enemyTeamPools:
+  - nodeType: 0
+    enemies:
+    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  - nodeType: 0
+    enemies:
+    - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
+    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  - nodeType: 1
+    enemies:
+    - {fileID: 11400000, guid: 04205c6ef5775136188aa0f92238bf60, type: 2}
+    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  - nodeType: 2
+    enemies:
+    - {fileID: 11400000, guid: 2fddb77ebf4e2721c805766c210c86fd, type: 2}
+  EnemyTeamCombat0:
+  - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  EnemyTeamCombat1:
+  - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
+  - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  EnemyTeamCombat2:
+  - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
+  - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  RestHealPercent: 30
+--- !u!114 &910000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c73ad5f3ef44dc4b836d3391dc97016, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  AutoStart: 1
+  StartDelaySeconds: 0
+  RunManager: {fileID: 910000002}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 910000001}
   - {fileID: 330585546}
   - {fileID: 410087041}
   - {fileID: 832575519}

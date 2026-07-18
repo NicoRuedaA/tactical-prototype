@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -66,6 +67,12 @@ public sealed class RunManager : MonoBehaviour
 
     public RunState CurrentRun { get; private set; }
 
+    /// <summary>Stable seed that identifies the active run.</summary>
+    public int CurrentRunSeed { get; private set; }
+
+    /// <summary>Number of completed combat encounters in the active run.</summary>
+    public int CurrentCombatIndex => _currentCombatIndex;
+
     /// <summary>Current phase of the run state machine.</summary>
     public RunPhase CurrentPhase { get; private set; } = RunPhase.None;
 
@@ -104,6 +111,21 @@ public sealed class RunManager : MonoBehaviour
     /// </summary>
     public void StartNewRun()
     {
+        StartNewRunInternal(seed: null, loadScene: true);
+    }
+
+    /// <summary>Starts a reproducible run with an explicit seed.</summary>
+    public void StartNewRun(int seed)
+    {
+        StartNewRunInternal(seed, loadScene: true);
+    }
+
+    /// <summary>
+    /// Deterministic initialization seam. EditMode tests can skip the scene load
+    /// while exercising the same run construction used at runtime.
+    /// </summary>
+    internal void StartNewRunInternal(int? seed, bool loadScene)
+    {
         if (PlayerTeam == null || PlayerTeam.Length == 0)
         {
             Debug.LogError("RunManager.StartNewRun: PlayerTeam is null or empty!");
@@ -123,13 +145,21 @@ public sealed class RunManager : MonoBehaviour
             pieces.Add(piece);
         }
 
+        CurrentRunSeed = seed ?? GenerateRunSeed();
         _currentCombatIndex = 0;
-        var graph = MapGenerator.Generate(seed: null, rows: 2, nodesPerRow: 3);
+        var graph = MapGenerator.Generate(seed: CurrentRunSeed, rows: 2, nodesPerRow: 3);
         CurrentRun = new RunState(pieces, graph);
         CurrentPhase = RunPhase.Map;
-        Debug.Log($"Run started with {pieces.Count} pieces, {graph.Nodes.Count} map nodes");
+        Debug.Log($"Run started (seed={CurrentRunSeed}) with {pieces.Count} pieces, {graph.Nodes.Count} map nodes");
 
-        LoadMapScene();
+        if (loadScene)
+            LoadMapScene();
+    }
+
+    /// <summary>Returns a deterministic seed for a domain at the current run progress.</summary>
+    public int GetStreamSeed(RunRandomStream stream)
+    {
+        return RunSeedStreams.Derive(CurrentRunSeed, stream, _currentCombatIndex);
     }
 
     /// <summary>
@@ -289,16 +319,37 @@ public sealed class RunManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by DefeatScreen to return to the main menu.
-    /// Destroys the singleton and loads SampleScene so a new run can begin.
+    /// Called by DefeatScreen to start a fresh run.
+    /// Reuses the persistent singleton so loading SampleScene cannot create a
+    /// short-lived duplicate whose bootstrap references are destroyed in Awake.
     /// </summary>
     public void RestartRun()
     {
+        RestartRun(startNewRun: true);
+    }
+
+    /// <summary>
+    /// Deterministic restart seam used by EditMode tests to verify state reset
+    /// without invoking SceneManager. Runtime callers use <see cref="RestartRun()"/>.
+    /// </summary>
+    internal void RestartRun(bool startNewRun)
+    {
         CurrentRun = null;
         CurrentPhase = RunPhase.None;
+        LastRunWasVictory = false;
+        CurrentRunSeed = 0;
         _currentCombatIndex = 0;
-        Destroy(gameObject);
-        SceneManager.LoadScene("SampleScene");
+        _currentNodeType = default;
+
+        if (startNewRun)
+            StartNewRun();
+    }
+
+    private static int GenerateRunSeed()
+    {
+        byte[] bytes = Guid.NewGuid().ToByteArray();
+        int seed = BitConverter.ToInt32(bytes, 0) ^ BitConverter.ToInt32(bytes, 4);
+        return seed != 0 ? seed : unchecked((int)0x6D2B79F5u);
     }
 
     private void ApplyRestHeal()

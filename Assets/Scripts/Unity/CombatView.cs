@@ -1,6 +1,24 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Game.Core;
+
+public sealed class CombatFeedbackRecord
+{
+    public CombatFeedbackRecord(Piece piece, CombatFeedbackKind kind, int amount, string label)
+    {
+        Piece = piece;
+        Kind = kind;
+        Amount = amount;
+        Label = label ?? string.Empty;
+    }
+
+    public Piece Piece { get; }
+    public CombatFeedbackKind Kind { get; }
+    public int Amount { get; }
+    public string Label { get; }
+}
 
 public class CombatView : MonoBehaviour
 {
@@ -24,13 +42,49 @@ public class CombatView : MonoBehaviour
     public Material PiecePlayerMat;
     public Material PieceEnemyMat;
 
+    [Header("Replaceable Piece Indicators")]
+    public GameObject PieceHighlightPrefab;
+    public Material PieceSelectedHighlight;
+    public Material PieceAttackHighlight;
+    public Material PieceAbilityHighlight;
+
+    [Header("Floating Feedback")]
+    public GameObject FloatingTextPrefab;
+    public Transform FeedbackRoot;
+    [Min(0f)] public float FloatingTextDuration = 0.7f;
+    public bool CompleteAnimationsImmediately;
+
     private CombatEngine _engine;
     private readonly Dictionary<Axial, TileView> _tileViews = new();
     private readonly Dictionary<Piece, PieceView> _pieceViews = new();
+    private readonly HashSet<Piece> _dyingPieces = new();
+    private readonly Queue<CombatFeedbackPopup> _popupPool = new();
+    private readonly HashSet<CombatFeedbackPopup> _activePopups = new();
+    private int _popupSequence;
+    private bool _isShuttingDown;
+
+    public event Action<CombatFeedbackRecord> FeedbackPresented;
+
+    public int ActivePopupCount => _activePopups.Count;
+    public int PooledPopupCount => _popupPool.Count;
+    public bool HasActiveFeedback
+    {
+        get
+        {
+            if (_activePopups.Count > 0)
+                return true;
+            foreach (PieceView view in _pieceViews.Values)
+            {
+                if (view != null && view.HasActiveFeedback)
+                    return true;
+            }
+            return false;
+        }
+    }
 
     public void OnEngineReady(CombatEngine engine)
     {
-        _engine = engine;
+        _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         Subscribe();
         BuildBoard();
         BuildPieces();
@@ -38,105 +92,242 @@ public class CombatView : MonoBehaviour
 
     private void OnDestroy()
     {
+        _isShuttingDown = true;
         if (_engine != null)
         {
             _engine.PieceMoved -= OnPieceMoved;
-            _engine.PieceAttacked -= OnPieceAttacked;
+            _engine.AttackResolved -= OnAttackResolved;
             _engine.PieceDied -= OnPieceDied;
             _engine.TurnChanged -= OnTurnChanged;
-            _engine.CombatEnded -= OnCombatEnded;
-            _engine.AbilityUsed -= OnAbilityUsed;
+            _engine.AbilityResolved -= PresentAbilityResolution;
         }
+
+        foreach (CombatFeedbackPopup popup in new List<CombatFeedbackPopup>(_activePopups))
+            DestroyPopup(popup);
+        _activePopups.Clear();
+
+        while (_popupPool.Count > 0)
+            DestroyPopup(_popupPool.Dequeue());
     }
 
     private void Subscribe()
     {
         _engine.PieceMoved += OnPieceMoved;
-        _engine.PieceAttacked += OnPieceAttacked;
+        _engine.AttackResolved += OnAttackResolved;
         _engine.PieceDied += OnPieceDied;
         _engine.TurnChanged += OnTurnChanged;
-        _engine.CombatEnded += OnCombatEnded;
-        _engine.AbilityUsed += OnAbilityUsed;
+        _engine.AbilityResolved += PresentAbilityResolution;
     }
 
     private void BuildBoard()
     {
-        if (TilePrefab == null || BoardRoot == null) return;
+        if (TilePrefab == null || BoardRoot == null)
+            return;
 
         foreach (Tile tile in _engine.Board.Tiles)
         {
             Axial coord = tile.Coords;
-            Vector3 worldPos = HexLayout.AxialToWorld(coord);
+            GameObject instance = Instantiate(
+                TilePrefab,
+                HexLayout.AxialToWorld(coord),
+                Quaternion.identity,
+                BoardRoot);
+            instance.name = $"Tile_{coord}";
 
-            GameObject go = Instantiate(TilePrefab, worldPos, Quaternion.identity, BoardRoot);
-            go.name = $"Tile_{coord}";
-
-            TileView tv = go.GetComponent<TileView>();
-            if (tv != null)
+            TileView view = instance.GetComponent<TileView>();
+            if (view != null)
             {
-                tv.Coord = coord;
-                    tv.AssignMaterials(TileNormal, TileReachable, TileAttackable, TileSelected, TileAbilityRange);
-                tv.SetHighlight(TileHighlight.Normal);
+                view.Coord = coord;
+                view.AssignMaterials(
+                    TileNormal,
+                    TileReachable,
+                    TileAttackable,
+                    TileSelected,
+                    TileAbilityRange);
+                view.SetHighlight(TileHighlight.Normal);
             }
-
-            _tileViews[coord] = tv;
+            _tileViews[coord] = view;
         }
     }
 
     private void BuildPieces()
     {
-        if (PiecePrefab == null || PiecesRoot == null) return;
+        if (PiecePrefab == null || PiecesRoot == null)
+            return;
 
         foreach (Piece piece in _engine.Pieces)
         {
-            if (piece.IsDead) continue;
+            if (piece.IsDead)
+                continue;
 
-            Vector3 worldPos = HexLayout.AxialToWorld(piece.Coords);
-            GameObject go = Instantiate(PiecePrefab, worldPos, Quaternion.identity, PiecesRoot);
-            go.name = piece.Name;
+            GameObject instance = Instantiate(
+                PiecePrefab,
+                HexLayout.AxialToWorld(piece.Coords),
+                Quaternion.identity,
+                PiecesRoot);
+            instance.name = piece.Name;
 
-            PieceView pv = go.GetComponent<PieceView>();
-            if (pv != null)
+            PieceView view = instance.GetComponent<PieceView>();
+            if (view != null)
             {
-                pv.Piece = piece;
-                pv.AssignMaterial(piece.Team == Team.Player ? PiecePlayerMat : PieceEnemyMat);
+                view.Piece = piece;
+                view.SetCompleteAnimationsImmediately(CompleteAnimationsImmediately);
+                view.AssignMaterial(piece.Team == Team.Player ? PiecePlayerMat : PieceEnemyMat);
+                view.ConfigureHighlight(
+                    PieceHighlightPrefab,
+                    PieceSelectedHighlight != null ? PieceSelectedHighlight : TileSelected,
+                    PieceAttackHighlight != null ? PieceAttackHighlight : TileAttackable,
+                    PieceAbilityHighlight != null ? PieceAbilityHighlight : TileAbilityRange);
+                view.RefreshVitals();
             }
-
-            _pieceViews[piece] = pv;
+            _pieceViews[piece] = view;
         }
     }
 
     public TileView GetTileView(Axial coord)
     {
-        _tileViews.TryGetValue(coord, out var tv);
-        return tv;
+        _tileViews.TryGetValue(coord, out TileView view);
+        return view;
     }
 
     public PieceView GetPieceView(Piece piece)
     {
-        _pieceViews.TryGetValue(piece, out var pv);
-        return pv;
+        _pieceViews.TryGetValue(piece, out PieceView view);
+        return view;
+    }
+
+    public void SetCompleteAnimationsImmediately(bool completeImmediately)
+    {
+        CompleteAnimationsImmediately = completeImmediately;
+        foreach (PieceView view in new List<PieceView>(_pieceViews.Values))
+        {
+            if (view != null)
+                view.SetCompleteAnimationsImmediately(completeImmediately);
+        }
+        if (!completeImmediately)
+            return;
+        CompleteActiveFeedbackImmediately();
+    }
+
+    public void CompleteActiveFeedbackImmediately()
+    {
+        foreach (PieceView view in new List<PieceView>(_pieceViews.Values))
+        {
+            if (view != null)
+                view.CompleteAllFeedbackImmediately();
+        }
+        foreach (CombatFeedbackPopup popup in new List<CombatFeedbackPopup>(_activePopups))
+        {
+            if (popup != null)
+                popup.CompleteImmediately();
+        }
+    }
+
+    public void PresentAbilityResolution(AbilityResolution resolution)
+    {
+        if (resolution == null || resolution.IsPassive)
+            return;
+
+        if (resolution.Source != null && _pieceViews.TryGetValue(resolution.Source, out PieceView casterView))
+        {
+            casterView.RefreshVitals();
+            int manaCost = resolution.Ability != null ? resolution.Ability.ManaCost : 0;
+            if (manaCost > 0)
+                PresentChange(resolution.Source, casterView, CombatFeedbackKind.Mana, -manaCost, $"Mana -{manaCost}");
+        }
+
+        foreach (AbilityEffectChange change in resolution.Changes)
+        {
+            if (change?.Target == null || !_pieceViews.TryGetValue(change.Target, out PieceView targetView))
+                continue;
+
+            targetView.RefreshVitals();
+            if (change.HpDelta < 0)
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Damage, -change.HpDelta, $"-{Math.Abs(change.HpDelta)}");
+            else if (change.HpDelta > 0)
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Heal, change.HpDelta, $"+{change.HpDelta}");
+
+            if (change.ManaDelta != 0)
+            {
+                string sign = change.ManaDelta > 0 ? "+" : string.Empty;
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Mana, change.ManaDelta, $"Mana {sign}{change.ManaDelta}");
+            }
+
+            if (resolution.Ability != null
+                && (resolution.Ability.EffectType == EffectType.Buff
+                    || resolution.Ability.EffectType == EffectType.Debuff))
+            {
+                int amount = change.BuffDelta == 0 ? 1 : change.BuffDelta;
+                string label = resolution.Ability.EffectType == EffectType.Debuff ? "Debuff" : "Buff";
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Buff, amount, label);
+            }
+        }
+    }
+
+    public void SetHighlightForCoord(Axial coord, TileHighlight state)
+    {
+        if (_tileViews.TryGetValue(coord, out TileView view) && view != null)
+            view.SetHighlight(state);
+    }
+
+    public void SetHighlightForPiece(Piece piece, PieceHighlight state)
+    {
+        if (piece != null && _pieceViews.TryGetValue(piece, out PieceView view) && view != null)
+            view.SetHighlight(state);
+    }
+
+    public void ClearHighlights()
+    {
+        foreach (TileView view in _tileViews.Values)
+        {
+            if (view != null)
+                view.SetHighlight(TileHighlight.Normal);
+        }
+        foreach (PieceView view in _pieceViews.Values)
+        {
+            if (view != null && !view.IsDying)
+                view.SetHighlight(PieceHighlight.Normal);
+        }
     }
 
     private void OnPieceMoved(Piece piece, Axial from, Axial to)
     {
-        if (_pieceViews.TryGetValue(piece, out var pv))
-            pv.OnMove(HexLayout.AxialToWorld(to));
+        if (_pieceViews.TryGetValue(piece, out PieceView view) && view != null)
+            view.OnMove(HexLayout.AxialToWorld(to));
     }
 
-    private void OnPieceAttacked(Piece attacker, Piece target, int damage)
+    private void OnAttackResolved(AttackResolution resolution)
     {
-        if (_pieceViews.TryGetValue(target, out var pv))
-            pv.OnHit();
+        if (resolution?.Target == null || resolution.AppliedDamage <= 0)
+            return;
+        if (!_pieceViews.TryGetValue(resolution.Target, out PieceView view) || view == null)
+            return;
+        PresentChange(
+            resolution.Target,
+            view,
+            CombatFeedbackKind.Damage,
+            resolution.AppliedDamage,
+            $"-{resolution.AppliedDamage}");
     }
 
     private void OnPieceDied(Piece piece)
     {
-        if (_pieceViews.TryGetValue(piece, out var pv))
-        {
+        if (piece == null || _dyingPieces.Contains(piece))
+            return;
+        if (!_pieceViews.TryGetValue(piece, out PieceView view) || view == null)
+            return;
+
+        _dyingPieces.Add(piece);
+        view.OnDeath(() => CompletePieceRemoval(piece, view));
+    }
+
+    private void CompletePieceRemoval(Piece piece, PieceView expectedView)
+    {
+        if (!_dyingPieces.Remove(piece))
+            return;
+        if (_pieceViews.TryGetValue(piece, out PieceView currentView)
+            && currentView == expectedView)
             _pieceViews.Remove(piece);
-            pv.OnDeath();
-        }
     }
 
     private void OnTurnChanged(Piece current)
@@ -144,96 +335,186 @@ public class CombatView : MonoBehaviour
         ClearHighlights();
     }
 
-    private void OnAbilityUsed(Piece caster, IAbilityData ability, System.Collections.Generic.IReadOnlyList<Piece> targets)
+    private void PresentChange(
+        Piece piece,
+        PieceView view,
+        CombatFeedbackKind kind,
+        int amount,
+        string label)
     {
-        // Refresh mana bar on caster
-        if (_pieceViews.TryGetValue(caster, out var pv))
-            pv.RefreshMana();
-
-        // Refresh HP bars on all targets (heal/damage)
-        foreach (var t in targets)
+        switch (kind)
         {
-            if (_pieceViews.TryGetValue(t, out var tv))
-                tv.OnHit();
+            case CombatFeedbackKind.Damage:
+                view.OnDamage(Math.Abs(amount));
+                break;
+            case CombatFeedbackKind.Heal:
+                view.OnHeal(Math.Abs(amount));
+                break;
+            case CombatFeedbackKind.Mana:
+                view.OnManaChanged(amount);
+                break;
+            case CombatFeedbackKind.Buff:
+                view.OnBuffChanged(amount);
+                break;
         }
+
+        FeedbackPresented?.Invoke(new CombatFeedbackRecord(piece, kind, amount, label));
+        ShowPopup(view.transform.position, label, kind);
     }
 
-    private void OnCombatEnded(Team winner)
+    private void ShowPopup(Vector3 piecePosition, string label, CombatFeedbackKind kind)
     {
-        Debug.Log($"<color=lime>Combat over — {winner} wins</color>");
-        ShowBanner(winner);
+        CombatFeedbackPopup popup = AcquirePopup();
+        _activePopups.Add(popup);
+        float stackOffset = (_popupSequence++ % 3) * 0.22f;
+        popup.Show(
+            piecePosition + Vector3.up * (1.05f + stackOffset),
+            label,
+            kind,
+            FloatingTextDuration,
+            CompleteAnimationsImmediately);
     }
 
-    public void TestShowBanner()
+    private CombatFeedbackPopup AcquirePopup()
     {
-        ShowBanner(Team.Player);
+        CombatFeedbackPopup popup = _popupPool.Count > 0
+            ? _popupPool.Dequeue()
+            : CreatePopup();
+        popup.gameObject.SetActive(true);
+        return popup;
     }
 
-    private void ShowBanner(Team winner)
+    private CombatFeedbackPopup CreatePopup()
     {
-        // Canvas
-        var canvasGO = new GameObject("BannerCanvas");
-        var canvas = canvasGO.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
+        Transform parent = FeedbackRoot != null ? FeedbackRoot : PiecesRoot;
+        GameObject instance;
+        if (FloatingTextPrefab != null)
+            instance = Instantiate(FloatingTextPrefab, parent);
+        else
+        {
+            instance = new GameObject("Combat Feedback Popup");
+            instance.transform.SetParent(parent, false);
+            TextMesh text = instance.AddComponent<TextMesh>();
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 48;
+            text.characterSize = 0.055f;
+            MeshRenderer renderer = instance.GetComponent<MeshRenderer>();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.sortingOrder = 100;
+        }
 
-        // Dark overlay
-        var overlay = new GameObject("Overlay");
-        overlay.transform.SetParent(canvasGO.transform, false);
-        var overlayImg = overlay.AddComponent<UnityEngine.UI.Image>();
-        overlayImg.color = new Color(0f, 0f, 0f, 0.6f);
-        var overlayRT = overlay.GetComponent<RectTransform>();
-        overlayRT.anchorMin = Vector2.zero;
-        overlayRT.anchorMax = Vector2.one;
-        overlayRT.sizeDelta = Vector2.zero;
-
-        // Title text
-        var title = new GameObject("Title");
-        title.transform.SetParent(canvasGO.transform, false);
-        var titleText = title.AddComponent<UnityEngine.UI.Text>();
-        bool playerWins = winner == Team.Player;
-        titleText.text = playerWins ? "VICTORY" : "DEFEAT";
-        titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        titleText.fontSize = 72;
-        titleText.fontStyle = FontStyle.Bold;
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.color = playerWins ? new Color(1f, 0.84f, 0f) : new Color(1f, 0.2f, 0.2f);
-        var titleRT = title.GetComponent<RectTransform>();
-        titleRT.anchorMin = new Vector2(0, 0.5f);
-        titleRT.anchorMax = new Vector2(1, 0.5f);
-        titleRT.pivot = new Vector2(0.5f, 0.5f);
-        titleRT.sizeDelta = new Vector2(0, 120);
-        titleRT.anchoredPosition = Vector2.zero;
-
-        // Subtitle
-        var sub = new GameObject("Subtitle");
-        sub.transform.SetParent(canvasGO.transform, false);
-        var subText = sub.AddComponent<UnityEngine.UI.Text>();
-        subText.text = playerWins ? "Player team wins!" : "Enemy team wins...";
-        subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        subText.fontSize = 32;
-        subText.alignment = TextAnchor.MiddleCenter;
-        subText.color = Color.white;
-        var subRT = sub.GetComponent<RectTransform>();
-        subRT.anchorMin = new Vector2(0, 0.5f);
-        subRT.anchorMax = new Vector2(1, 0.5f);
-        subRT.pivot = new Vector2(0.5f, 0.5f);
-        subRT.sizeDelta = new Vector2(0, 60);
-        subRT.anchoredPosition = new Vector2(0, -80);
-
-        // NOTE: Intentionally NOT calling DontDestroyOnLoad — the banner is
-        // per-combat and must be destroyed when the scene unloads.
+        CombatFeedbackPopup popup = instance.GetComponent<CombatFeedbackPopup>();
+        if (popup == null)
+            popup = instance.AddComponent<CombatFeedbackPopup>();
+        popup.Initialize(ReleasePopup);
+        return popup;
     }
 
-    public void SetHighlightForCoord(Axial coord, TileHighlight state)
+    private void ReleasePopup(CombatFeedbackPopup popup)
     {
-        if (_tileViews.TryGetValue(coord, out var tv))
-            tv.SetHighlight(state);
+        if (popup == null || !_activePopups.Remove(popup))
+            return;
+        popup.gameObject.SetActive(false);
+        if (!_isShuttingDown)
+            _popupPool.Enqueue(popup);
     }
 
-    public void ClearHighlights()
+    private static void DestroyPopup(CombatFeedbackPopup popup)
     {
-        foreach (var tv in _tileViews.Values)
-            tv.SetHighlight(TileHighlight.Normal);
+        if (popup == null)
+            return;
+        popup.Shutdown();
+        if (Application.isPlaying)
+            Destroy(popup.gameObject);
+        else
+            DestroyImmediate(popup.gameObject);
+    }
+}
+
+internal sealed class CombatFeedbackPopup : MonoBehaviour
+{
+    private TextMesh _text;
+    private Action<CombatFeedbackPopup> _release;
+    private Coroutine _routine;
+    private Color _baseColor;
+
+    public void Initialize(Action<CombatFeedbackPopup> release)
+    {
+        _release = release;
+        _text = GetComponentInChildren<TextMesh>(true);
+        if (_text == null)
+            _text = gameObject.AddComponent<TextMesh>();
+    }
+
+    public void Show(
+        Vector3 position,
+        string label,
+        CombatFeedbackKind kind,
+        float duration,
+        bool completeImmediately)
+    {
+        if (_routine != null)
+            StopCoroutine(_routine);
+        transform.position = position;
+        _text.text = label ?? string.Empty;
+        _baseColor = GetColor(kind);
+        _text.color = _baseColor;
+        if (completeImmediately || duration <= 0f)
+        {
+            CompleteImmediately();
+            return;
+        }
+        _routine = StartCoroutine(Animate(duration));
+    }
+
+    public void CompleteImmediately()
+    {
+        if (_routine != null)
+            StopCoroutine(_routine);
+        _routine = null;
+        _release?.Invoke(this);
+    }
+
+    public void Shutdown()
+    {
+        if (_routine != null)
+            StopCoroutine(_routine);
+        _routine = null;
+        _release = null;
+    }
+
+    private void LateUpdate()
+    {
+        if (Camera.main != null)
+            transform.rotation = Camera.main.transform.rotation;
+    }
+
+    private IEnumerator Animate(float duration)
+    {
+        Vector3 start = transform.position;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            transform.position = start + Vector3.up * (0.45f * t);
+            _text.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 1f - t);
+            yield return null;
+        }
+        _routine = null;
+        _release?.Invoke(this);
+    }
+
+    private static Color GetColor(CombatFeedbackKind kind)
+    {
+        return kind switch
+        {
+            CombatFeedbackKind.Damage => new Color(1f, 0.22f, 0.16f, 1f),
+            CombatFeedbackKind.Heal => new Color(0.25f, 1f, 0.4f, 1f),
+            CombatFeedbackKind.Mana => new Color(0.25f, 0.75f, 1f, 1f),
+            _ => new Color(1f, 0.82f, 0.2f, 1f),
+        };
     }
 }

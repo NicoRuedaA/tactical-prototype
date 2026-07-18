@@ -5,7 +5,7 @@
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
-[Uu]ser[S]ettings/
+/UserSettings/
 [Mm]emoryCaptures/
 [Ee]xport/
 
@@ -36,6 +36,7 @@ Thumbs.db
 # SDD / OpenSpec artifacts (not for version control unless explicitly shared)
 openspec/
 .atl/
+.codegraph/
 
 # Test results
 TestResults.xml

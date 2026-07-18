@@ -476,6 +476,15 @@ MonoBehaviour:
   _hpBar: {fileID: 502900329380939246}
   _hpFill: {fileID: 317657755010436702}
   _hpFillRenderer: {fileID: 6480763428999446558}
+  _manaBar: {fileID: 3157402971885534923}
+  _manaFill: {fileID: 2097543478187406168}
+  _manaFillRenderer: {fileID: 6263077038505574528}
+  _targetIndicator: {fileID: 0}
+  MoveDuration: 0.18
+  HitDuration: 0.16
+  DeathDuration: 0.28
+  DamageShakeDegrees: 8
+  CompleteAnimationsImmediately: 0
 --- !u!1 &4662766250000186239
 GameObject:
   m_ObjectHideFlags: 0

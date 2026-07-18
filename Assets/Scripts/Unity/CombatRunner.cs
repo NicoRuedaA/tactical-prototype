@@ -14,6 +14,10 @@ using Game.Core;
 /// </summary>
 public class CombatRunner : MonoBehaviour
 {
+    [Header("Scene references")]
+    public CombatView CombatView;
+    public PlayerInputController PlayerInput;
+
     [Header("Board size")]
     public int Width = 6;
     public int Height = 5;
@@ -28,6 +32,9 @@ public class CombatRunner : MonoBehaviour
              "Set false once player input is wired through the view layer.")]
     public bool AutoPlayBothSides = true;
 
+    [Tooltip("When opening the Combat scene directly, initialize a self-playing demo if no RunManager exists.")]
+    public bool AutoStartDemoWhenOpenedDirectly = true;
+
     [Tooltip("Seconds between AI turns so you can watch the action.")]
     public float TurnDelay = 0.6f;
 
@@ -35,8 +42,14 @@ public class CombatRunner : MonoBehaviour
     private bool _initialized;
     private RunState _runState;
     private Dictionary<string, IEnemyAI> _pieceAIs = new Dictionary<string, IEnemyAI>();
+    private bool _aiTurnScheduled;
+
+    private const float FeedbackPollDelay = 0.02f;
 
     public CombatEngine Engine => _engine;
+
+    /// <summary>True after the deferred combat startup has invoked CombatEngine.Begin.</summary>
+    public bool HasCombatStarted { get; private set; }
 
     /// <summary>Fired when combat ends. RunManager subscribes to this.</summary>
     public event Action<Team> CombatEnded;
@@ -108,6 +121,13 @@ public class CombatRunner : MonoBehaviour
     public void InitializeDemo()
     {
         if (_initialized) return;
+
+        if (!HasDemoCharacterData())
+        {
+            Debug.LogWarning("CombatRunner.InitializeDemo: Missing fallback CharacterData references. Assign PlayerQueenData, PlayerPawnData, EnemyQueenData, and EnemyPawnData.");
+            return;
+        }
+
         _initialized = true;
 
         var board = Board.CreateRectangle(Width, Height);
@@ -126,25 +146,44 @@ public class CombatRunner : MonoBehaviour
 
     public void BeginCombat() => Invoke(nameof(StartCombat), 0.3f);
 
-    private void StartCombat() => _engine.Begin();
+    private void StartCombat()
+    {
+        if (_engine == null || HasCombatStarted)
+            return;
+
+        _engine.Begin();
+        HasCombatStarted = true;
+    }
 
     // ── Unity lifecycle (intentionally passive) ───────────────────────────────
 
     private void Awake()
     {
-        // Intentionally empty. Initialization is always explicit via
-        // Initialize() or InitializeDemo().
+        if (CombatView == null || PlayerInput == null)
+            Debug.LogError(
+                "CombatRunner requires explicit CombatView and PlayerInput references.",
+                this);
     }
 
     private void Start()
     {
-        // Intentionally empty. Wireup happens in WireEventsAndBegin().
+        if (!_initialized && AutoStartDemoWhenOpenedDirectly && RunManager.Instance == null)
+            InitializeDemo();
+    }
+
+    private void OnDisable()
+    {
+        CancelScheduledAiTurn();
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
 
     private void WireEventsAndBegin()
     {
+        if (CombatView == null || PlayerInput == null)
+            throw new InvalidOperationException(
+                "CombatRunner cannot start because its scene references are missing.");
+
         _engine.PieceMoved    += (p, from, to) => Debug.Log($"{p.Name} moved {from} -> {to}");
         _engine.PieceAttacked += (a, t, dmg)   => Debug.Log($"{a.Name} hit {t.Name} for {dmg}  (HP {t.Hp}/{t.EffectiveMaxHp})");
         _engine.PieceDied     += p             => Debug.Log($"<color=red>{p.Name} died</color>");
@@ -157,8 +196,8 @@ public class CombatRunner : MonoBehaviour
             CombatEnded?.Invoke(team);
         };
 
-        GetComponent<CombatView>()?.OnEngineReady(_engine);
-        GetComponent<PlayerInputController>()?.OnEngineReady(_engine);
+        CombatView.OnEngineReady(_engine);
+        PlayerInput.OnEngineReady(_engine);
 
         BeginCombat();
     }
@@ -172,7 +211,9 @@ public class CombatRunner : MonoBehaviour
 
         bool aiDriven = AutoPlayBothSides || current.Team == Team.Enemy;
         if (aiDriven)
-            Invoke(nameof(TakeAiTurn), TurnDelay);
+            ScheduleAiTurn(TurnDelay);
+        else
+            CancelScheduledAiTurn();
     }
 
     /// <summary>
@@ -182,15 +223,39 @@ public class CombatRunner : MonoBehaviour
     /// </summary>
     private void TakeAiTurn()
     {
+        _aiTurnScheduled = false;
         if (_engine.IsOver) return;
 
         var current = _engine.Current;
         if (current == null) return;
+        if (!AutoPlayBothSides && current.Team != Team.Enemy)
+            return;
+        if (CombatView != null && CombatView.HasActiveFeedback)
+        {
+            ScheduleAiTurn(FeedbackPollDelay);
+            return;
+        }
 
         if (_pieceAIs.TryGetValue(current.Id, out var ai) && ai != null)
             ai.TakeTurn(_engine);
         else
             DefaultEnemyAI.TakeTurn(_engine);
+    }
+
+    private void ScheduleAiTurn(float delay)
+    {
+        if (_aiTurnScheduled || _engine == null || _engine.IsOver)
+            return;
+        _aiTurnScheduled = true;
+        Invoke(nameof(TakeAiTurn), Mathf.Max(0f, delay));
+    }
+
+    private void CancelScheduledAiTurn()
+    {
+        if (!_aiTurnScheduled)
+            return;
+        CancelInvoke(nameof(TakeAiTurn));
+        _aiTurnScheduled = false;
     }
 
     // ── Coordinate helpers ────────────────────────────────────────────────────
@@ -203,5 +268,13 @@ public class CombatRunner : MonoBehaviour
     private Axial EnemyStartCoords(int index)
     {
         return new Axial(Width - 1, index);
+    }
+
+    private bool HasDemoCharacterData()
+    {
+        return PlayerQueenData != null
+            && PlayerPawnData != null
+            && EnemyQueenData != null
+            && EnemyPawnData != null;
     }
 }

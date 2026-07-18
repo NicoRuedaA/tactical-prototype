@@ -1,0 +1,18 @@
+{
+    "name": "Game.Unity",
+    "rootNamespace": "",
+    "references": [
+        "Game.Core",
+        "Game.Data",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

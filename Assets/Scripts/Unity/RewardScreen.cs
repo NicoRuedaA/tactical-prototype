@@ -50,6 +50,7 @@ public class RewardScreen : MonoBehaviour
 
     private RewardOption[] _currentOptions;
     private RunState _runState;
+    private int _rewardRecipientSeed;
 
     // ── Reward pool ───────────────────────────────────────────────────────────
 
@@ -75,26 +76,19 @@ public class RewardScreen : MonoBehaviour
         }
 
         _runState = mgr.CurrentRun;
-        GenerateOptions();
+        _currentOptions = GenerateRewardOptions(mgr.GetStreamSeed(RunRandomStream.RewardOptions));
+        _rewardRecipientSeed = mgr.GetStreamSeed(RunRandomStream.RewardRecipient);
         DisplayOptions();
     }
 
     // ── Reward generation ─────────────────────────────────────────────────────
 
-    private void GenerateOptions()
+    public static RewardOption[] GenerateRewardOptions(int streamSeed)
     {
-        // Pick 3 distinct options from pool
-        var pool = new List<RewardOption>(RewardPool);
-        var selected = new List<RewardOption>();
-
-        for (int i = 0; i < 3 && pool.Count > 0; i++)
-        {
-            int idx = Random.Range(0, pool.Count);
-            selected.Add(pool[idx]);
-            pool.RemoveAt(idx);
-        }
-
-        _currentOptions = selected.ToArray();
+        var rng = new DeterministicRandom(streamSeed);
+        int optionCount = System.Math.Min(3, RewardPool.Length);
+        var indices = rng.PickDistinctIndices(RewardPool.Length, optionCount);
+        return indices.Select(index => RewardPool[index]).ToArray();
     }
 
     // ── UI display ────────────────────────────────────────────────────────────
@@ -176,18 +170,27 @@ public class RewardScreen : MonoBehaviour
 
     private Piece PickRandomAlivePiece()
     {
-        var alivePieces = _runState.GetAlivePlayerPieces().ToList();
+        return SelectRewardRecipient(_runState, _rewardRecipientSeed);
+    }
+
+    public static Piece SelectRewardRecipient(RunState runState, int streamSeed)
+    {
+        if (runState == null)
+            return null;
+
+        var alivePieces = runState.GetAlivePlayerPieces().ToList();
 
         if (alivePieces.Count == 0)
         {
             // Fallback: use any piece (dead or alive) — shouldn't normally happen
-            alivePieces = _runState.Pieces.ToList();
+            alivePieces = runState.Pieces.ToList();
         }
 
         if (alivePieces.Count == 0)
             return null;
 
-        return alivePieces[Random.Range(0, alivePieces.Count)];
+        var rng = new DeterministicRandom(streamSeed);
+        return alivePieces[rng.Next(alivePieces.Count)];
     }
 
     private void ApplyReward(Piece piece, RewardOption option)

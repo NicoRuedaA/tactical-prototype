@@ -95,10 +95,17 @@ public class MapView : MonoBehaviour
 
     private RectTransform CreateNodeButton(MapNode node, IReadOnlyList<string> availableNodes)
     {
-        if (NodeButtonPrefab == null || ContentContainer == null)
+        var content = EnsureContentContainer();
+        if (content == null)
             return null;
 
-        var button = Instantiate(NodeButtonPrefab, ContentContainer);
+        var button = NodeButtonPrefab != null
+            ? Instantiate(NodeButtonPrefab, content)
+            : CreateRuntimeNodeButton(content);
+
+        if (button == null)
+            return null;
+
         _spawnedButtons.Add(button.gameObject);
 
         // Position by Row/Col
@@ -154,6 +161,9 @@ public class MapView : MonoBehaviour
             if (!nodeButtons.TryGetValue(fromNode.Id, out var fromRt))
                 continue;
 
+            if (fromRt == null)
+                continue;
+
             if (fromNode.ConnectedNodeIds.Count == 0)
                 continue;
 
@@ -162,6 +172,9 @@ public class MapView : MonoBehaviour
             foreach (var toId in fromNode.ConnectedNodeIds)
             {
                 if (!nodeButtons.TryGetValue(toId, out var toRt))
+                    continue;
+
+                if (toRt == null)
                     continue;
 
                 Vector3 toWorld = GetButtonCenterWorld(toRt);
@@ -183,6 +196,67 @@ public class MapView : MonoBehaviour
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private Transform EnsureContentContainer()
+    {
+        if (ContentContainer != null)
+            return ContentContainer;
+
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            var canvasGo = new GameObject("Runtime Map Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvas = canvasGo.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            var scaler = canvasGo.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280f, 720f);
+        }
+
+        var contentGo = new GameObject("Runtime Map Content", typeof(RectTransform));
+        contentGo.transform.SetParent(canvas.transform, false);
+
+        var rt = contentGo.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(-120f, 160f);
+        rt.sizeDelta = new Vector2(900f, 520f);
+
+        ContentContainer = contentGo.transform;
+        _spawnedButtons.Add(contentGo);
+        return ContentContainer;
+    }
+
+    private static Button CreateRuntimeNodeButton(Transform parent)
+    {
+        var buttonGo = new GameObject("Runtime Map Node", typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonGo.transform.SetParent(parent, false);
+
+        var rt = buttonGo.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(72f, 72f);
+
+        var image = buttonGo.GetComponent<Image>();
+        image.color = Color.white;
+
+        var labelGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+        labelGo.transform.SetParent(buttonGo.transform, false);
+
+        var labelRt = labelGo.GetComponent<RectTransform>();
+        labelRt.anchorMin = Vector2.zero;
+        labelRt.anchorMax = Vector2.one;
+        labelRt.offsetMin = Vector2.zero;
+        labelRt.offsetMax = Vector2.zero;
+
+        var text = labelGo.GetComponent<Text>();
+        text.alignment = TextAnchor.MiddleCenter;
+        text.color = Color.black;
+        text.fontSize = 32;
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        return buttonGo.GetComponent<Button>();
+    }
 
     private static Vector3 GetButtonCenterWorld(RectTransform rt)
     {

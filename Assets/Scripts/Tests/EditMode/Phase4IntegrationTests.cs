@@ -1,4 +1,4 @@
-using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using Game.Core;
@@ -9,6 +9,13 @@ using Game.Core;
 /// </summary>
 public class Phase4IntegrationTests
 {
+    private static void SetCombatIndex(RunManager manager, int value)
+    {
+        typeof(RunManager)
+            .GetField("_currentCombatIndex", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.SetValue(manager, value);
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -29,9 +36,13 @@ public class Phase4IntegrationTests
         var go = new GameObject("TestRunManager");
         var mgr = go.AddComponent<RunManager>();
 
-        mgr.BossTeamPool = new[]
+        mgr.enemyTeamPools = new[]
         {
-            ScriptableObject.CreateInstance<CharacterData>(),
+            new TeamRoster
+            {
+                nodeType = MapNodeType.Boss,
+                enemies = new[] { ScriptableObject.CreateInstance<CharacterData>() },
+            },
         };
 
         var result = mgr.GetEnemyTeam(MapNodeType.Boss);
@@ -45,10 +56,17 @@ public class Phase4IntegrationTests
         var go = new GameObject("TestRunManager");
         var mgr = go.AddComponent<RunManager>();
 
-        mgr.EliteTeamPool = new[]
+        mgr.enemyTeamPools = new[]
         {
-            ScriptableObject.CreateInstance<CharacterData>(),
-            ScriptableObject.CreateInstance<CharacterData>(),
+            new TeamRoster
+            {
+                nodeType = MapNodeType.Elite,
+                enemies = new[]
+                {
+                    ScriptableObject.CreateInstance<CharacterData>(),
+                    ScriptableObject.CreateInstance<CharacterData>(),
+                },
+            },
         };
 
         var result = mgr.GetEnemyTeam(MapNodeType.Elite);
@@ -62,9 +80,13 @@ public class Phase4IntegrationTests
         var go = new GameObject("TestRunManager");
         var mgr = go.AddComponent<RunManager>();
 
-        mgr.CombatTeamPool = new CharacterData[][]
+        mgr.enemyTeamPools = new[]
         {
-            new[] { ScriptableObject.CreateInstance<CharacterData>() },
+            new TeamRoster
+            {
+                nodeType = MapNodeType.Combat,
+                enemies = new[] { ScriptableObject.CreateInstance<CharacterData>() },
+            },
         };
 
         var result = mgr.GetEnemyTeam(MapNodeType.Combat);
@@ -95,8 +117,8 @@ public class Phase4IntegrationTests
             ScriptableObject.CreateInstance<CharacterData>(),
         };
 
-        // New pools are null/empty
-        mgr.CombatTeamPool = null;
+        // New pool is null/empty
+        mgr.enemyTeamPools = null;
 
         var result = mgr.GetEnemyTeam(MapNodeType.Combat);
         Assert.IsNotNull(result);
@@ -109,15 +131,21 @@ public class Phase4IntegrationTests
         var go = new GameObject("TestRunManager");
         var mgr = go.AddComponent<RunManager>();
 
-        mgr.CombatTeamPool = new CharacterData[][]
+        var teamA = ScriptableObject.CreateInstance<CharacterData>();
+        teamA.displayName = "TeamA";
+        var teamB = ScriptableObject.CreateInstance<CharacterData>();
+        teamB.displayName = "TeamB";
+
+        mgr.enemyTeamPools = new[]
         {
-            new[] { ScriptableObject.CreateInstance<CharacterData>() { displayName = "TeamA" } },
-            new[] { ScriptableObject.CreateInstance<CharacterData>() { displayName = "TeamB" } },
+            new TeamRoster { nodeType = MapNodeType.Combat, enemies = new[] { teamA } },
+            new TeamRoster { nodeType = MapNodeType.Combat, enemies = new[] { teamB } },
         };
 
-        // First call
+        // First combat encounter
         var first = mgr.GetEnemyTeam(MapNodeType.Combat);
-        // Second call — should give next entry
+        SetCombatIndex(mgr, 1);
+        // Second combat encounter
         var second = mgr.GetEnemyTeam(MapNodeType.Combat);
         Assert.AreEqual("TeamA", first[0].displayName);
         Assert.AreEqual("TeamB", second[0].displayName);

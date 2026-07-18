@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -13,7 +12,7 @@ public class DefeatScreen : MonoBehaviour
     [Tooltip("Text element that displays VICTORY or DEFEAT.")]
     public Text TitleText;
 
-    [Tooltip("Button that returns to SampleScene (main menu).")]
+    [Tooltip("Button that starts a fresh run.")]
     public Button MainMenuButton;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -41,6 +40,13 @@ public class DefeatScreen : MonoBehaviour
 
     private void OnMainMenuClicked()
     {
-        SceneManager.LoadScene("SampleScene");
+        var mgr = RunManager.Instance;
+        if (mgr == null)
+        {
+            Debug.LogError("DefeatScreen: Cannot restart because RunManager.Instance is missing.");
+            return;
+        }
+
+        mgr.RestartRun();
     }
 }

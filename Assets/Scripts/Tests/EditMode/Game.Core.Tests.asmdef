@@ -6,7 +6,10 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Game.Data",
-        "Assembly-CSharp"
+        "Game.Unity",
+        "Game.Editor",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"

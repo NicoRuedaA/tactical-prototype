@@ -7,7 +7,9 @@ public enum TileHighlight
     Reachable,
     Attackable,
     Selected,
-    AbilityRange
+    AbilityRange,
+    Invalid,
+    Cancelled,
 }
 
 public class TileView : MonoBehaviour
@@ -21,23 +23,37 @@ public class TileView : MonoBehaviour
     [SerializeField] private Material _selectedMat;
     [SerializeField] private Material _abilityRangeMat;
 
+    private MaterialPropertyBlock _propertyBlock;
+    public TileHighlight CurrentHighlight { get; private set; } = TileHighlight.Normal;
+
     private void Awake()
     {
         if (_renderer == null) _renderer = GetComponent<Renderer>();
+        _propertyBlock = new MaterialPropertyBlock();
     }
 
     public void SetHighlight(TileHighlight state)
     {
         if (_renderer == null) return;
 
-        _renderer.material = state switch
+        CurrentHighlight = state;
+        _renderer.SetPropertyBlock(null);
+
+        _renderer.sharedMaterial = state switch
         {
             TileHighlight.Reachable => _reachableMat,
             TileHighlight.Attackable => _attackableMat,
             TileHighlight.Selected => _selectedMat,
             TileHighlight.AbilityRange => _abilityRangeMat,
+            TileHighlight.Invalid => _selectedMat,
+            TileHighlight.Cancelled => _selectedMat,
             _ => _normalMat,
         };
+
+        if (state == TileHighlight.Invalid)
+            ApplyTint(new Color(1f, 0.05f, 0.65f, 1f));
+        else if (state == TileHighlight.Cancelled)
+            ApplyTint(new Color(0.55f, 0.62f, 0.72f, 1f));
     }
 
     public void AssignMaterials(Material normal, Material reachable, Material attackable, Material selected, Material abilityRange = null)
@@ -47,5 +63,15 @@ public class TileView : MonoBehaviour
         _attackableMat = attackable;
         _selectedMat = selected;
         if (abilityRange != null) _abilityRangeMat = abilityRange;
+    }
+
+    private void ApplyTint(Color color)
+    {
+        if (_propertyBlock == null)
+            _propertyBlock = new MaterialPropertyBlock();
+        _propertyBlock.Clear();
+        _propertyBlock.SetColor("_BaseColor", color);
+        _propertyBlock.SetColor("_Color", color);
+        _renderer.SetPropertyBlock(_propertyBlock);
     }
 }

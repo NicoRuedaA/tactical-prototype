@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f67890a1b2c3d4e5f67890, type: 3}
+  m_Script: {fileID: 11500000, guid: d56cf0add8541a95db747e2be42893b8, type: 3}
   m_Name: BD_InfernalKing
   m_EditorClassIdentifier: 
   displayName: Infernal King

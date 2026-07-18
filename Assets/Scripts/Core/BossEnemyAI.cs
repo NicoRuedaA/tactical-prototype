@@ -51,6 +51,9 @@ namespace Game.Core
 
                 if (_damageBuff > 0)
                     _boss.AddBonusDamage(_damageBuff);
+
+                engine.ReportBossPhaseTransition(
+                    _boss, 2, _phaseAbility, _damageBuff);
             }
 
             // ── Phase 2 AoE schedule ──────────────────────────────────
