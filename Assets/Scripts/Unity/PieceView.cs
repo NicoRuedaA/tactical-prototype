@@ -20,6 +20,7 @@ public enum CombatFeedbackKind
     Heal,
     Mana,
     Buff,
+    Debuff,
 }
 
 public class PieceView : MonoBehaviour
@@ -152,6 +153,12 @@ public class PieceView : MonoBehaviour
     {
         RefreshVitals();
         PlayVitalFeedback(CombatFeedbackKind.Buff, amount);
+    }
+
+    public void OnDebuffChanged(int amount)
+    {
+        RefreshVitals();
+        PlayVitalFeedback(CombatFeedbackKind.Debuff, amount);
     }
 
     public void OnDeath(Action completed)
@@ -307,7 +314,7 @@ public class PieceView : MonoBehaviour
             float pulse = Mathf.Sin(t * Mathf.PI);
             ApplyBodyTint(Color.Lerp(color, new Color(color.r, color.g, color.b, 0f), t));
             transform.localScale = _baseScale * (1f + pulse * (kind == CombatFeedbackKind.Heal ? 0.12f : 0.06f));
-            transform.localRotation = kind == CombatFeedbackKind.Damage
+            transform.localRotation = kind == CombatFeedbackKind.Damage || kind == CombatFeedbackKind.Debuff
                 ? _baseRotation * Quaternion.Euler(0f, 0f, Mathf.Sin(t * Mathf.PI * 4f) * DamageShakeDegrees * (1f - t))
                 : _baseRotation;
             yield return null;
@@ -470,6 +477,7 @@ public class PieceView : MonoBehaviour
             CombatFeedbackKind.Damage => new Color(1f, 0.16f, 0.12f, 1f),
             CombatFeedbackKind.Heal => new Color(0.2f, 1f, 0.42f, 1f),
             CombatFeedbackKind.Mana => new Color(0.2f, 0.75f, 1f, 1f),
+            CombatFeedbackKind.Debuff => new Color(0.9f, 0.25f, 0.65f, 1f),
             _ => new Color(1f, 0.78f, 0.18f, 1f),
         };
     }

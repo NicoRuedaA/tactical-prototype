@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Game.Core;
@@ -38,11 +39,18 @@ public class CombatRunner : MonoBehaviour
     [Tooltip("Seconds between AI turns so you can watch the action.")]
     public float TurnDelay = 0.6f;
 
+    [Tooltip("Seconds the combat HUD keeps Victory/Defeat visible before the run changes scenes.")]
+    [Min(0f)] public float CombatEndDelaySeconds = 1.5f;
+
     private CombatEngine _engine;
     private bool _initialized;
     private RunState _runState;
     private Dictionary<string, IEnemyAI> _pieceAIs = new Dictionary<string, IEnemyAI>();
     private bool _aiTurnScheduled;
+    private Coroutine _combatEndRoutine;
+    private bool _combatEndRelayed;
+    private bool _combatEndPending;
+    private Team _pendingWinner;
 
     private const float FeedbackPollDelay = 0.02f;
 
@@ -174,6 +182,26 @@ public class CombatRunner : MonoBehaviour
     private void OnDisable()
     {
         CancelScheduledAiTurn();
+        if (_engine != null)
+            _engine.CombatEnded -= OnEngineCombatEnded;
+        bool hadPendingRelay = _combatEndRoutine != null;
+        if (hadPendingRelay)
+        {
+            StopCoroutine(_combatEndRoutine);
+            _combatEndRoutine = null;
+        }
+        if (hadPendingRelay)
+            _combatEndPending = true;
+    }
+
+    private void OnEnable()
+    {
+        if (_engine != null)
+            _engine.CombatEnded -= OnEngineCombatEnded;
+        if (_engine != null && !_combatEndRelayed)
+            _engine.CombatEnded += OnEngineCombatEnded;
+        if (_combatEndPending && _combatEndRoutine == null)
+            _combatEndRoutine = StartCoroutine(RelayCombatEndedAfterDelay(_pendingWinner));
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
@@ -189,17 +217,42 @@ public class CombatRunner : MonoBehaviour
         _engine.PieceDied     += p             => Debug.Log($"<color=red>{p.Name} died</color>");
         _engine.TurnChanged   += OnTurnChanged;
 
-        // Relay CombatEnded to public event
-        _engine.CombatEnded += team =>
-        {
-            Debug.Log($"<color=lime>Combat over — {team} wins</color>");
-            CombatEnded?.Invoke(team);
-        };
+        // Relay CombatEnded once, after the HUD result has been visible for the
+        // configured terminal delay. PlayerInputController listens to the core
+        // event directly and renders the result immediately.
+        _engine.CombatEnded += OnEngineCombatEnded;
 
         CombatView.OnEngineReady(_engine);
         PlayerInput.OnEngineReady(_engine);
 
         BeginCombat();
+    }
+
+    private void OnEngineCombatEnded(Team winner)
+    {
+        if (_combatEndRelayed)
+            return;
+        _combatEndRelayed = true;
+        _combatEndPending = true;
+        _pendingWinner = winner;
+        Debug.Log($"<color=lime>Combat over — {winner} wins</color>");
+        if (CombatEndDelaySeconds <= 0f)
+        {
+            _combatEndPending = false;
+            CombatEnded?.Invoke(winner);
+            return;
+        }
+
+        _combatEndRoutine = StartCoroutine(RelayCombatEndedAfterDelay(winner));
+    }
+
+    private IEnumerator RelayCombatEndedAfterDelay(Team winner)
+    {
+        yield return new WaitForSecondsRealtime(CombatEndDelaySeconds);
+        _combatEndRoutine = null;
+        _combatEndPending = false;
+        if (isActiveAndEnabled)
+            CombatEnded?.Invoke(winner);
     }
 
     // ── Turn handling ─────────────────────────────────────────────────────────

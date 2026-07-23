@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6 — Combat Clarity (2026-07-23)
+
+### Added
+- **Serialized combat HUD**: displays the active unit, turn order, HP, mana, available abilities with costs, and discoverable controls.
+- **Typed action legality and feedback**: move, attack, ability, and pass actions share a typed legality contract with target highlighting and explicit invalid-action rejection.
+- **Combat feedback presentation**: movement, attack, healing, mana, buff, debuff, and death feedback can be click-to-skipped; the skip click is consumed instead of passing through to the board or UI.
+- **Persistent boss-phase toast**: shows the current phase, phase ability, and damage bonus.
+
+### Changed
+- **Action economy**: each unit may move **or act** once per turn; moving and then attacking in the same turn is not allowed.
+- **Combat-end lifecycle**: `CombatEndDelaySeconds` is configurable, and the terminal feedback relay is lifecycle-safe and emits only once.
+- **Reproducible runs**: deterministic run seeds remain available for repeatable map, encounter, and reward verification.
+
+### Verification
+- **177/177 EditMode** tests passed.
+- **31/31 PlayMode** tests passed, including the focused boss-toast test (**1/1**).
+- Project baseline validator succeeded; the Unity Console reported **0 errors, 0 warnings, and 0 logs**.
+- Audio cues are deferred to **Phase 4**. First-time-player usability remains the **Phase 1 closure gate**.
+
 ## v0.5 — Boss & Elite Encounters (2026-06-24)
 
 ### Added

@@ -49,6 +49,7 @@ public sealed class CombatHudView : MonoBehaviour
     private Action<CombatHudInputOrigin> _passRequested;
     private ColorBlock _defaultAbilityColors;
     private Coroutine _feedbackHideRoutine;
+    private bool _persistentFeedback;
 
     public bool IsConfigured => ActiveUnitText != null
                                 && ResourcesText != null
@@ -64,6 +65,8 @@ public sealed class CombatHudView : MonoBehaviour
 
     public IReadOnlyList<Button> AbilityButtons => _abilityButtons;
     public CombatFeedbackTone LastFeedbackTone { get; private set; }
+    public string LastFeedbackMessage { get; private set; } = string.Empty;
+    public bool HasPersistentFeedback => _persistentFeedback && FeedbackToast != null && FeedbackToast.activeSelf;
 
     public void Bind(
         Action<int, CombatHudInputOrigin> abilityRequested,
@@ -153,7 +156,8 @@ public sealed class CombatHudView : MonoBehaviour
             return;
 
         LastFeedbackTone = tone;
-        FeedbackText.text = message ?? string.Empty;
+        LastFeedbackMessage = message ?? string.Empty;
+        FeedbackText.text = LastFeedbackMessage;
         FeedbackBackground.color = tone switch
         {
             CombatFeedbackTone.Invalid => new Color(0.55f, 0.06f, 0.2f, 0.94f),
@@ -164,8 +168,31 @@ public sealed class CombatHudView : MonoBehaviour
         RestartFeedbackTimer();
     }
 
+    public void ShowBossPhaseFeedback(string message)
+    {
+        if (FeedbackToast == null || FeedbackBackground == null || FeedbackText == null)
+            return;
+
+        _persistentFeedback = true;
+        LastFeedbackTone = CombatFeedbackTone.Info;
+        LastFeedbackMessage = message ?? string.Empty;
+        FeedbackText.text = LastFeedbackMessage;
+        FeedbackBackground.color = new Color(0.45f, 0.12f, 0.5f, 0.96f);
+        FeedbackToast.SetActive(true);
+        RestartFeedbackTimer();
+    }
+
+    public void ConsumePersistentFeedback()
+    {
+        if (!_persistentFeedback)
+            return;
+        _persistentFeedback = false;
+        ClearFeedback();
+    }
+
     public void ClearFeedback()
     {
+        _persistentFeedback = false;
         if (_feedbackHideRoutine != null)
         {
             StopCoroutine(_feedbackHideRoutine);
@@ -173,8 +200,16 @@ public sealed class CombatHudView : MonoBehaviour
         }
         if (FeedbackText != null)
             FeedbackText.text = string.Empty;
+        LastFeedbackMessage = string.Empty;
         if (FeedbackToast != null)
             FeedbackToast.SetActive(false);
+    }
+
+    public void ClearTransientFeedback()
+    {
+        if (_persistentFeedback)
+            return;
+        ClearFeedback();
     }
 
     private void EnsureAbilityButtonCount(int count)
@@ -208,6 +243,7 @@ public sealed class CombatHudView : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(Mathf.Max(0.1f, FeedbackDuration));
         _feedbackHideRoutine = null;
+        _persistentFeedback = false;
         if (FeedbackText != null)
             FeedbackText.text = string.Empty;
         if (FeedbackToast != null)

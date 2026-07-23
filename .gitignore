@@ -40,3 +40,7 @@ openspec/
 
 # Test results
 TestResults.xml
+
+# Unity Test Runner generated initialization scenes
+Assets/InitTestScene*.unity
+Assets/InitTestScene*.unity.meta

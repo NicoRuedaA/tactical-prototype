@@ -152,6 +152,26 @@ namespace Game.PlayMode.Tests
         }
 
         [UnityTest, Timeout(30000)]
+        public IEnumerator CombatResult_RemainsVisibleUntilConfiguredTerminalDelay()
+        {
+            var manager = RequireRunManagerInMap();
+            yield return EnterCombat(manager);
+            CombatRunner runner = null;
+            yield return WaitForCombatStarted(value => runner = value, SceneTimeoutSeconds);
+
+            runner.CombatEndDelaySeconds = 0.4f;
+            TriggerEngineVictory(runner.Engine, Team.Player);
+            yield return new WaitForSecondsRealtime(0.1f);
+
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Combat"));
+            Assert.That(runner.PlayerInput.CombatHud.ActiveUnitText.text, Is.EqualTo("VICTORY"));
+
+            yield return WaitForScene("Reward", SceneTimeoutSeconds);
+            Assert.That(RunManager.Instance, Is.SameAs(manager));
+            Assert.That(manager.CurrentPhase, Is.EqualTo(RunManager.RunPhase.Reward));
+        }
+
+        [UnityTest, Timeout(30000)]
         public IEnumerator DefeatFlow_GameOverPlayAgain_ReusesRunManagerAndStartsFreshRun()
         {
             var manager = RequireRunManagerInMap();

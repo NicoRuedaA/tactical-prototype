@@ -9,7 +9,7 @@ The project already proves the complete run loop. The next objective is not to a
 - Normal, elite, and boss encounters.
 - Procedural map and persistent run progression.
 - Unity-independent `Game.Core` domain layer.
-- 177 passing EditMode tests and 26 PlayMode tests in the latest fully verified Phase 1 run.
+- 177 passing EditMode tests, 31 passing PlayMode tests, and green focused click/input/terminal suites in the final verified Phase 1 run.
 
 The main gaps are player feedback, Unity integration quality, PlayMode coverage, and content presentation.
 
@@ -99,8 +99,8 @@ code 0, and left no player process. Log
 - [x] Replace runtime-generated fallback UI with scene or prefab-based combat UI.
 - [x] Show active unit, turn order, HP, mana, available actions, and ability costs.
 - [x] Add explicit feedback for movement, attack range, targets, invalid actions, and pass turn.
-- [ ] Add damage, healing, death, passive, and boss phase feedback. Damage, healing, and death are complete; passive and boss phase presentation remain.
-- [ ] Add basic movement, hit, and transition animation plus essential audio cues. Movement, hit, and click-to-skip are complete; transitions and audio remain.
+- [x] Add damage, healing, death, passive, and boss phase feedback, including the persistent boss phase toast.
+- [x] Add basic movement, hit, and transition feedback plus click-to-skip input gating. Combat-end delay timing is configured through `CombatEndDelaySeconds`, and the relay is lifecycle-safe.
 - [x] Document and communicate the turn rule consistently.
 
 ### Product decision ✅ Resolved
@@ -112,14 +112,17 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 - [x] The player always knows whose turn it is and what actions are legal.
 - [x] Invalid actions explain why they failed.
 - [x] Mouse and keyboard controls are discoverable on screen.
-- [ ] A first-time player can complete a normal encounter unaided. Automated coverage is in place; external first-time playtesting remains.
+- [ ] A first-time player can complete a normal encounter unaided. Automated regression is green; manual first-time playtesting is the only remaining Phase 1 closure gate.
 
-### Current verification status (2026-07-18)
+### Current verification status (2026-07-23)
 
-- The latest fully verified run passed all 177 EditMode tests and all 26 PlayMode tests, with a clean project validator and Console.
+- The final verified run passed all 177 EditMode tests, all 31 PlayMode tests, and the focused boss-toast test (1/1); click-to-skip, input, and terminal suites are green. The project baseline validator succeeded, and the Unity Console reported zero errors, warnings, or logs.
 - A subsequent reliability review found and corrected three click-to-skip edge cases: enemy AI now waits for presentation feedback, terminal feedback can be skipped through normal input, and UI pointer clicks are distinguished from keyboard Submit deterministically.
-- Unity compiled those corrections successfully. The Unity MCP connection has recovered and is ready; the final focused and full test rerun is the next task.
-- Phase 1 closes after final verification, passive/buff/boss-phase presentation, combat-end transition timing, essential audio, and a first-time-player usability pass.
+- The only intermediate failure was a fixture assumption that Player turns were contiguous; `TurnSystem` interleaves Enemy turns by initiative. The fixture was corrected in `Assets/Scripts/Tests/PlayMode/CombatFeedbackPresentationTests.cs` only.
+- WU5 completed passive/buff/debuff presentation, the persistent boss phase toast, configured `CombatEndDelaySeconds`, and a lifecycle-safe combat feedback relay.
+- Unity MCP is ready for tools and idle, with no compilation, blocking, or stale state.
+- Audio cues are intentionally deferred to Phase 4 content polish and are not a Phase 1 blocker.
+- Phase 1 remains in progress. The only pending closure work is manual first-time-player usability validation; automated regression is green.
 
 ## Phase 2 — Strategic map
 
@@ -172,7 +175,8 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 - An elite encounter with a distinct mechanical identity.
 - A boss whose phase transition is mechanically and visually clear.
 - A compact, balanced ability set with visible synergies.
-- Consistent final-direction UI, art, VFX, and audio across the full run.
+- Consistent final-direction UI, art, and VFX across the full run.
+- **Audio cues** (deferred from Phase 1; revisit during Phase 4 content polish).
 - Contextual first-run onboarding.
 
 ### Exit criteria

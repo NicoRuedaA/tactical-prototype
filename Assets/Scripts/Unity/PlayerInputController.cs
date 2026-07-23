@@ -54,6 +54,7 @@ public class PlayerInputController : MonoBehaviour
         _consumedPointerReleaseFrame = -1;
         _engine.TurnChanged += OnTurnChanged;
         _engine.CombatEnded += OnCombatEnded;
+        _engine.BossPhaseTransitioned += OnBossPhaseTransitioned;
 
         CombatHud.Bind(SelectAbilityFromHud, PassFromHud);
         RefreshHud();
@@ -65,6 +66,7 @@ public class PlayerInputController : MonoBehaviour
         {
             _engine.TurnChanged -= OnTurnChanged;
             _engine.CombatEnded -= OnCombatEnded;
+            _engine.BossPhaseTransitioned -= OnBossPhaseTransitioned;
         }
     }
 
@@ -87,7 +89,7 @@ public class PlayerInputController : MonoBehaviour
             _lastPlayerActor = _engine.AliveOf(Team.Player).FirstOrDefault();
         }
 
-        CombatHud?.ClearFeedback();
+        CombatHud?.ClearTransientFeedback();
         RefreshHud();
     }
 
@@ -135,9 +137,22 @@ public class PlayerInputController : MonoBehaviour
 
     private void OnCombatEnded(Team winner)
     {
-        CombatHud?.ShowCombatResult(winner == Team.Player
-            ? "Combat won — loading reward..."
-            : "Defeat — loading game over...");
+        CombatHud?.ShowCombatResult(winner == Team.Player ? "VICTORY" : "DEFEAT");
+    }
+
+    private void OnBossPhaseTransitioned(BossPhaseTransition transition)
+    {
+        if (transition == null || CombatHud == null)
+            return;
+
+        string ability = transition.GrantedAbility != null
+            ? $" Ability: {transition.GrantedAbility.DisplayName}."
+            : string.Empty;
+        string bonus = transition.DamageBonus > 0
+            ? $" Damage +{transition.DamageBonus}."
+            : string.Empty;
+        CombatHud.ShowBossPhaseFeedback(
+            $"BOSS PHASE {transition.Phase}!{ability}{bonus}");
     }
 
     private void Update()
@@ -146,6 +161,13 @@ public class PlayerInputController : MonoBehaviour
 
         if (UpdateConsumedPointerGesture())
             return;
+
+        if (CombatHud != null && CombatHud.HasPersistentFeedback)
+        {
+            if (WasPointerPressedThisFrame())
+                CombatHud.ConsumePersistentFeedback();
+            return;
+        }
 
         if (CombatView != null && CombatView.HasActiveFeedback)
         {

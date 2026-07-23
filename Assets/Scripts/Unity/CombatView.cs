@@ -6,18 +6,25 @@ using Game.Core;
 
 public sealed class CombatFeedbackRecord
 {
-    public CombatFeedbackRecord(Piece piece, CombatFeedbackKind kind, int amount, string label)
+    public CombatFeedbackRecord(
+        Piece piece,
+        CombatFeedbackKind kind,
+        int amount,
+        string label,
+        bool isPassive = false)
     {
         Piece = piece;
         Kind = kind;
         Amount = amount;
         Label = label ?? string.Empty;
+        IsPassive = isPassive;
     }
 
     public Piece Piece { get; }
     public CombatFeedbackKind Kind { get; }
     public int Amount { get; }
     public string Label { get; }
+    public bool IsPassive { get; }
 }
 
 public class CombatView : MonoBehaviour
@@ -225,14 +232,14 @@ public class CombatView : MonoBehaviour
 
     public void PresentAbilityResolution(AbilityResolution resolution)
     {
-        if (resolution == null || resolution.IsPassive)
+        if (resolution == null)
             return;
 
         if (resolution.Source != null && _pieceViews.TryGetValue(resolution.Source, out PieceView casterView))
         {
             casterView.RefreshVitals();
             int manaCost = resolution.Ability != null ? resolution.Ability.ManaCost : 0;
-            if (manaCost > 0)
+            if (!resolution.IsPassive && manaCost > 0)
                 PresentChange(resolution.Source, casterView, CombatFeedbackKind.Mana, -manaCost, $"Mana -{manaCost}");
         }
 
@@ -243,23 +250,27 @@ public class CombatView : MonoBehaviour
 
             targetView.RefreshVitals();
             if (change.HpDelta < 0)
-                PresentChange(change.Target, targetView, CombatFeedbackKind.Damage, -change.HpDelta, $"-{Math.Abs(change.HpDelta)}");
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Damage, -change.HpDelta, $"-{Math.Abs(change.HpDelta)}", resolution.IsPassive);
             else if (change.HpDelta > 0)
-                PresentChange(change.Target, targetView, CombatFeedbackKind.Heal, change.HpDelta, $"+{change.HpDelta}");
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Heal, change.HpDelta, $"+{change.HpDelta}", resolution.IsPassive);
 
             if (change.ManaDelta != 0)
             {
                 string sign = change.ManaDelta > 0 ? "+" : string.Empty;
-                PresentChange(change.Target, targetView, CombatFeedbackKind.Mana, change.ManaDelta, $"Mana {sign}{change.ManaDelta}");
+                PresentChange(change.Target, targetView, CombatFeedbackKind.Mana, change.ManaDelta, $"Mana {sign}{change.ManaDelta}", resolution.IsPassive);
             }
 
             if (resolution.Ability != null
                 && (resolution.Ability.EffectType == EffectType.Buff
-                    || resolution.Ability.EffectType == EffectType.Debuff))
+                    || resolution.Ability.EffectType == EffectType.Debuff)
+                && change.BuffDelta != 0)
             {
-                int amount = change.BuffDelta == 0 ? 1 : change.BuffDelta;
-                string label = resolution.Ability.EffectType == EffectType.Debuff ? "Debuff" : "Buff";
-                PresentChange(change.Target, targetView, CombatFeedbackKind.Buff, amount, label);
+                int amount = Math.Abs(change.BuffDelta);
+                bool debuff = resolution.Ability.EffectType == EffectType.Debuff;
+                string label = debuff ? "Debuff" : "Buff";
+                PresentChange(change.Target, targetView,
+                    debuff ? CombatFeedbackKind.Debuff : CombatFeedbackKind.Buff,
+                    amount, label, resolution.IsPassive);
             }
         }
     }
@@ -340,7 +351,8 @@ public class CombatView : MonoBehaviour
         PieceView view,
         CombatFeedbackKind kind,
         int amount,
-        string label)
+        string label,
+        bool isPassive = false)
     {
         switch (kind)
         {
@@ -356,9 +368,12 @@ public class CombatView : MonoBehaviour
             case CombatFeedbackKind.Buff:
                 view.OnBuffChanged(amount);
                 break;
+            case CombatFeedbackKind.Debuff:
+                view.OnDebuffChanged(amount);
+                break;
         }
 
-        FeedbackPresented?.Invoke(new CombatFeedbackRecord(piece, kind, amount, label));
+        FeedbackPresented?.Invoke(new CombatFeedbackRecord(piece, kind, amount, label, isPassive));
         ShowPopup(view.transform.position, label, kind);
     }
 
@@ -514,6 +529,7 @@ internal sealed class CombatFeedbackPopup : MonoBehaviour
             CombatFeedbackKind.Damage => new Color(1f, 0.22f, 0.16f, 1f),
             CombatFeedbackKind.Heal => new Color(0.25f, 1f, 0.4f, 1f),
             CombatFeedbackKind.Mana => new Color(0.25f, 0.75f, 1f, 1f),
+            CombatFeedbackKind.Debuff => new Color(0.9f, 0.25f, 0.65f, 1f),
             _ => new Color(1f, 0.82f, 0.2f, 1f),
         };
     }

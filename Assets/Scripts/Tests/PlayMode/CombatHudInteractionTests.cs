@@ -112,6 +112,7 @@ namespace Game.PlayMode.Tests
             while (_runner.Engine.Current.Team != Team.Player)
                 _runner.Engine.Pass();
             _runner.CancelInvoke();
+            _runner.CombatView.CompleteActiveFeedbackImmediately();
             eventSystem.SetSelectedGameObject(null);
             int unfocusedTurnBefore = _runner.Engine.TurnCount;
 
@@ -433,11 +434,50 @@ namespace Game.PlayMode.Tests
             Assert.That(canvases.Count(canvas => canvas.name == "Combat HUD"), Is.EqualTo(1));
             Assert.That(GameObject.Find("BannerCanvas"), Is.Null);
             Assert.That(huds, Has.Length.EqualTo(1));
-            Assert.That(huds[0].ActiveUnitText.text, Does.Contain("Combat won"));
+            Assert.That(huds[0].ActiveUnitText.text, Is.EqualTo("VICTORY"));
             Assert.That(huds[0].PassButton.interactable, Is.False);
             Assert.That(huds[0].AbilityButtons.All(button => !button.interactable), Is.True);
             Assert.That(huds[0].FeedbackToast.activeSelf, Is.False);
             Assert.That(huds[0].FeedbackText.text, Is.Empty);
+            yield return null;
+        }
+
+        [UnityTest, Timeout(15000)]
+        public IEnumerator BossPhaseToast_UsesProductionTurnAndPointerSkip()
+        {
+            Piece boss = _runner.Engine.AliveOf(Team.Enemy).First(piece => piece.IsQueen);
+            _runner.CancelInvoke();
+            int guard = _runner.Engine.Turns.Count + 1;
+            while (!_runner.Engine.IsOver && _runner.Engine.Current != boss && guard-- > 0)
+            {
+                _runner.Engine.Pass();
+                _runner.CancelInvoke();
+            }
+            Assert.That(_runner.Engine.Current, Is.SameAs(boss));
+
+            boss.TakeDamage(boss.Hp - 1);
+            var phaseAbility = new TestAbility(EffectType.Buff, affectsTeam: AffectsTeam.Self);
+            var bossAi = new BossEnemyAI(boss, phaseAbility, damageBuff: 2, phaseThresholdPercent: 50);
+            int turnBefore = _runner.Engine.TurnCount;
+            bossAi.TakeTurn(_runner.Engine);
+
+            Assert.That(_runner.Engine.TurnCount, Is.EqualTo(turnBefore + 1));
+            Assert.That(_runner.Engine.Current, Is.Not.SameAs(boss));
+            Assert.That(_hud.LastFeedbackMessage, Does.StartWith("BOSS PHASE 2"));
+
+            _testMouse.MakeCurrent();
+            InputSystem.QueueStateEvent(_testMouse, new MouseState());
+            InputSystem.Update();
+            InputSystem.QueueStateEvent(_testMouse, new MouseState
+            {
+                position = new Vector2(-500f, -500f),
+            }.WithButton(MouseButton.Left));
+            InputSystem.Update();
+            _testMouse.MakeCurrent();
+            _input.SendMessage("Update", SendMessageOptions.RequireReceiver);
+
+            Assert.That(_hud.LastFeedbackMessage, Is.Empty);
+            Assert.That(_runner.Engine.TurnCount, Is.EqualTo(turnBefore + 1));
             yield return null;
         }
 
@@ -634,6 +674,7 @@ namespace Game.PlayMode.Tests
             while (!_runner.Engine.IsOver && _runner.Engine.Current.Team == Team.Player)
                 _runner.Engine.Pass();
             _runner.CancelInvoke();
+            _runner.CombatView.CompleteActiveFeedbackImmediately();
             if (_runner.Engine.IsOver)
                 Assert.Ignore("The fallback combat ended while arranging an enemy turn.");
             int enemyTurn = _runner.Engine.TurnCount;
@@ -780,6 +821,28 @@ namespace Game.PlayMode.Tests
 
             Assert.Fail("No legal world target was visible outside the serialized HUD.");
             return default;
+        }
+
+        private sealed class TestAbility : IAbilityData
+        {
+            public TestAbility(EffectType effectType, AffectsTeam affectsTeam)
+            {
+                EffectType = effectType;
+                AffectsTeam = affectsTeam;
+            }
+
+            public string DisplayName => "Boss Phase Test";
+            public AbilityType AbilityType => AbilityType.Active;
+            public int ManaCost => 0;
+            public int ActiveRange => 5;
+            public PassiveTrigger Trigger => PassiveTrigger.OnHit;
+            public EffectType EffectType { get; }
+            public int EffectValue => 1;
+            public StatType StatToModify => StatType.Damage;
+            public int AreaRadius => 1;
+            public AffectsTeam AffectsTeam { get; }
+            public DurationType DurationType => DurationType.FixedTurns;
+            public int DurationTurns => 1;
         }
 
     }

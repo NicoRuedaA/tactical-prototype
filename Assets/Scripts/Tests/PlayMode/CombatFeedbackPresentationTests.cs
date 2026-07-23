@@ -162,7 +162,10 @@ namespace Game.PlayMode.Tests
             _runner.CancelInvoke();
             _view.FeedbackPresented -= Capture;
 
-            CombatFeedbackRecord[] damage = feedback
+            CombatFeedbackRecord[] activeFeedback = feedback
+                .Where(record => !record.IsPassive)
+                .ToArray();
+            CombatFeedbackRecord[] damage = activeFeedback
                 .Where(record => record.Kind == CombatFeedbackKind.Damage)
                 .ToArray();
             Assert.That(damage, Has.Length.EqualTo(damagedTargets.Length));
@@ -174,23 +177,23 @@ namespace Game.PlayMode.Tests
             Assert.That(damage.GroupBy(record => record.Piece).All(group => group.Count() == 1),
                 Is.True, "Every ability target must receive exactly one damage presentation.");
 
-            CombatFeedbackRecord heal = feedback.Single(record =>
+            CombatFeedbackRecord heal = activeFeedback.Single(record =>
                 record.Kind == CombatFeedbackKind.Heal);
             Assert.That(heal.Piece, Is.SameAs(ally));
             Assert.That(heal.Amount, Is.EqualTo(2));
 
-            CombatFeedbackRecord[] mana = feedback
+            CombatFeedbackRecord[] mana = activeFeedback
                 .Where(record => record.Kind == CombatFeedbackKind.Mana)
                 .ToArray();
             Assert.That(mana, Has.Length.EqualTo(2));
             CollectionAssert.AreEquivalent(new[] { -1, 1 }, mana.Select(record => record.Amount));
             Assert.That(mana.All(record => record.Piece == caster), Is.True);
 
-            CombatFeedbackRecord buff = feedback.Single(record =>
+            CombatFeedbackRecord buff = activeFeedback.Single(record =>
                 record.Kind == CombatFeedbackKind.Buff);
             Assert.That(buff.Piece, Is.SameAs(ally));
             Assert.That(buff.Amount, Is.EqualTo(1));
-            Assert.That(feedback, Has.Count.EqualTo(damagedTargets.Length + 4));
+            Assert.That(activeFeedback, Has.Length.EqualTo(damagedTargets.Length + 4));
 
             Assert.That(_view.GetPieceView(caster).ManaFillRatio,
                 Is.EqualTo((float)caster.Mana / caster.MaxMana).Within(0.0001f));
@@ -218,12 +221,12 @@ namespace Game.PlayMode.Tests
             _view.FeedbackPresented -= Capture;
 
             CombatFeedbackRecord damage = feedback.Single(record =>
-                record.Kind == CombatFeedbackKind.Damage);
+                record.Kind == CombatFeedbackKind.Damage && !record.IsPassive);
             Assert.That(damage.Piece, Is.SameAs(target));
             Assert.That(damage.Amount, Is.EqualTo(1));
             Assert.That(damage.Label, Is.EqualTo("-1"));
-            Assert.That(feedback, Has.Count.EqualTo(1),
-                "CombatView must consume only the rich attack event, never duplicate legacy feedback.");
+            Assert.That(feedback.Count(record => !record.IsPassive), Is.EqualTo(1),
+                "CombatView must consume only the rich attack event once; passive reactions are separate marked records.");
             Assert.That(_view.ActivePopupCount, Is.Zero);
             yield return null;
         }
@@ -381,7 +384,10 @@ namespace Game.PlayMode.Tests
             Piece lastPlayer = runner.Engine.AliveOf(Team.Player).Last();
             while (runner.Engine.Current != lastPlayer)
             {
-                Assert.That(runner.Engine.Current.Team, Is.EqualTo(Team.Player));
+                // Initiative order interleaves player and enemy pieces. Advance
+                // through any intervening enemy turns without letting their
+                // scheduled AI action run during fixture setup.
+                runner.CancelInvoke();
                 runner.Engine.Pass();
             }
 

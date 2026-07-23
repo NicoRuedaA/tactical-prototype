@@ -4,7 +4,7 @@
 
 The project is also an architecture and delivery exercise: gameplay rules live in a Unity-independent `Game.Core` assembly, while scenes, input, UI, data authoring, validation, automated tests, and reproducible Linux builds form the integration layer around it.
 
-> **Development status — July 18, 2026:** vertical slice in active development. [Phase 0 is complete](ROADMAP.md#phase-0--reproducible-baseline--complete) and [Phase 1 is in progress](ROADMAP.md#phase-1--combat-clarity--in-progress). The full loop works; presentation and first-time-player clarity are still being finished.
+> **Development status — July 23, 2026:** vertical slice in active development. [Phase 0 is complete](ROADMAP.md#phase-0--reproducible-baseline--complete) and [Phase 1 is in progress](ROADMAP.md#phase-1--combat-clarity--in-progress). The full loop works; audio is deferred to Phase 4 and first-time-player clarity is still being validated.
 
 ## Play the current loop
 
@@ -65,8 +65,8 @@ Each unit gets **one action per turn**: **move, attack, use an ability, or pass*
 - Typed action evaluation and execution for move, attack, ability, and pass actions. The HUD and world highlights use the same Core legality contract.
 - Active and passive abilities with mana, healing, damage, buffs, debuffs, auras, durations, and turn/death triggers.
 - Player-facing turn order, HP, mana, ability costs, legal-target highlights, and explicit rejection feedback.
-- Interpolated movement and distinct damage, healing, mana, buff, and death presentation with click-to-skip input gating.
-- Strategy-based normal, elite, and boss AI. Boss phase mechanics exist in Core; their dedicated presentation is still part of Phase 1.
+- Interpolated movement and distinct damage, healing, mana, buff, debuff, passive, and death presentation with click-to-skip input gating.
+- Strategy-based normal, elite, and boss AI. Boss phase mechanics exist in Core with a persistent phase toast presentation.
 
 ### Run and progression
 
@@ -128,7 +128,7 @@ mkdir -p Builds/Logs
   -logFile "$PWD/Builds/Logs/playmode-tests.log"
 ```
 
-**Verification snapshot:** the latest fully verified Unity run on July 18, 2026 passed **177 EditMode** and **26 PlayMode** tests with a clean validator and Console. Three subsequent click-to-skip reliability corrections compiled successfully; their final focused and full-suite rerun remains pending. The retained `Builds/Logs/editmode-results.xml` and `Builds/Logs/playmode-results.xml` files are the earlier Phase 0 evidence (**142/142** and **3/3**), not the newer suite snapshot.
+**Verification snapshot:** the final verified Unity run passed **177/177 EditMode** tests, **31/31 PlayMode** tests, and the focused boss-toast test (**1/1**); the click-to-skip, input, and terminal suites are green. The baseline validator succeeded, and the Unity Console reported zero errors, warnings, or logs. Unity MCP was ready for tools and idle with no compilation, blocking, or stale state. The retained `Builds/Logs/editmode-results.xml` and `Builds/Logs/playmode-results.xml` files are the earlier Phase 0 evidence (**142/142** and **3/3**), not the newer suite snapshot.
 
 ## Reproducible Linux build
 
@@ -199,11 +199,10 @@ Ensure `~/.local/bin` is visible to applications launched from the desktop, rest
 
 ## Current limitations
 
-- Phase 1 still needs passive/buff and boss-phase presentation, combat-end transition timing, essential audio, and external first-time-player validation.
+- Phase 1's only remaining closure gate is manual first-time-player usability validation; automated regression is green. Audio cues are intentionally deferred to Phase 4 content polish.
 - Shop nodes are placeholders: selecting one currently returns to the map without a transaction.
 - Reward recipients are selected automatically; choosing which unit receives an upgrade belongs to Phase 3.
 - The map and reward UI are functional but not yet the final vertical-slice presentation.
 - The supported automated standalone workflow currently targets Linux only.
-- The final full-suite rerun after the latest click-to-skip corrections is still outstanding.
 
 See [`ROADMAP.md`](ROADMAP.md) for phase outcomes, exit criteria, current evidence, and the immediate work order. Historical feature milestones are recorded in [`CHANGELOG.md`](CHANGELOG.md).
