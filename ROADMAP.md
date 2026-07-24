@@ -9,7 +9,7 @@ The project already proves the complete run loop. The next objective is not to a
 - Normal, elite, and boss encounters.
 - Procedural map and persistent run progression.
 - Unity-independent `Game.Core` domain layer.
-- 177 passing EditMode tests, 31 passing PlayMode tests, and green focused click/input/terminal suites in the final verified Phase 1 run.
+- 181 passing EditMode tests, 31 passing PlayMode tests, and green focused click/input/terminal suites in the final verified Phase 1 run.
 
 The main gaps are player feedback, Unity integration quality, PlayMode coverage, and content presentation.
 
@@ -130,11 +130,18 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 
 ### Deliverables
 
-- Draw map connections and distinguish current, available, and visited nodes.
-- Add clear identities and explanations for combat, elite, rest, shop, and boss nodes.
+- [x] Draw map connections and distinguish current, available, visited, and blocked nodes.
+- [x] Add clear identities and explanations for combat, elite, rest, shop, and boss nodes.
 - Show the exact result of resting before returning to the map.
 - Either implement a minimal shop or remove shop nodes from generation for the vertical slice.
 - Preserve and display route and roster state across scene transitions.
+
+### Map readability slice ✅ Verified (2026-07-24)
+
+The first strategic-map slice is complete: route state is explicit, connections communicate
+available/visited/blocked paths, and node labels plus hover text explain each destination.
+Focused `MapView` tests pass **4/4**; the full suites pass **181/181 EditMode** and
+**31/31 PlayMode** tests.
 
 ### Exit criteria
 

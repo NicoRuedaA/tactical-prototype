@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7 — Strategic Map Readability (2026-07-24)
+
+### Added
+- **Route-state presentation**: current, available, visited, and blocked nodes are visually distinct, with matching connection states.
+- **Map guidance**: node labels identify combat, elite, rest, shop, and boss destinations; hover text explains each node's route state.
+
+### Verification
+- Focused `MapView` tests: **4/4** passed.
+- Full suites: **181/181 EditMode** and **31/31 PlayMode** tests passed.
+
 ## v0.6 — Combat Clarity (2026-07-23)
 
 ### Added
