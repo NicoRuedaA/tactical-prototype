@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.7 — Effective Max HP Audit (2026-07-24)
+
+### Changed
+- **Rules/UI audit**: verified production C# has no direct `.MaxHp` reads outside
+  the base-property definition/implementation and explanatory comments; runtime
+  rules and UI consistently use `EffectiveMaxHp`.
+
+### Scope
+- Documentation-only audit; no production C# code changed.
+
+### Verification
+- Full suites: **198/198 EditMode** and **31/31 PlayMode** tests passed.
+- Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7.6 — Ability Reward Deduplication (2026-07-24)
 
 ### Added

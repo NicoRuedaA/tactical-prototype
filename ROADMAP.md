@@ -181,7 +181,7 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 - [x] Let the player choose which unit receives a reward.
 - [x] Show current values and the exact post-reward result before confirmation.
 - [x] Remove text parsing for Max HP and use explicit reward effects.
-- Use `EffectiveMaxHp` consistently in rules and UI.
+- [x] Use `EffectiveMaxHp` consistently in rules and UI.
 - [x] Prevent exact duplicate abilities with normalized, case-insensitive display-name
   and complete gameplay-signature matching; incompatible-ability rules remain deferred
   pending compatibility metadata.
@@ -234,6 +234,17 @@ Focused RunState/ability tests pass **38/38**; the full suites pass **198/198
 EditMode** and **31/31 PlayMode** tests. The Unity Console reports **0 errors and
 0 warnings**, and `EditorSettings` was restored to its baseline Enter Play Mode
 options after verification.
+
+### Effective max HP audit ✅ Verified (2026-07-24)
+
+An audit of production C# found no direct `.MaxHp` reads outside the base-property
+definition/implementation and explanatory comments. Runtime rules and UI use
+`EffectiveMaxHp` for healing, combat thresholds, previews, HUD values, map roster
+summaries, and combat feedback. This is a documentation-only audit; no production
+code changed.
+
+The retained full-suite evidence remains **198/198 EditMode** and **31/31
+PlayMode** tests, with **0 Console errors and 0 warnings**.
 
 ### Exit criteria
 
