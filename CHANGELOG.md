@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.5 — Reward Previews (2026-07-24)
+
+### Added
+- **Inline recipient previews**: after selecting a reward card, each alive unit's
+  button shows the pending description and exact effective-stat or HP/max HP
+  current→after values before confirmation.
+- **Ability learn preview**: ability rewards display an explicit learn label without
+  mutating the recipient until selection is confirmed.
+- **Pure formatting**: preview formatters are read-only and covered by EditMode tests.
+
+### Verification
+- Focused `RewardScreenTests`: **7/7** passed.
+- `git diff --check`: clean.
+- Unity compilation: clean; no C# errors.
+- Full suites were not rerun for this slice; previous retained evidence remains
+  **190/190 EditMode** and **31/31 PlayMode** tests.
+
 ## v0.7.4 — Player-Selected Reward Recipients (2026-07-24)
 
 ### Added

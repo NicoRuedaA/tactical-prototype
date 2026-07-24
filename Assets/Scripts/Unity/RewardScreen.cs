@@ -334,11 +334,75 @@ public class RewardScreen : MonoBehaviour
         label.fontSize = 20;
         label.alignment = TextAnchor.MiddleCenter;
         label.color = Color.white;
-        label.text = $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp}";
+        label.text = FormatRecipientLabel(piece, _pendingOption);
 
         string capturedId = piece.Id;
         button.onClick.AddListener(() => OnRecipientClicked(capturedId));
         _recipientButtons.Add(button);
+    }
+
+    /// <summary>
+    /// Formats the exact effect of a pending reward for one recipient without
+    /// mutating the piece. This is intentionally pure so the preview can be
+    /// tested independently from the runtime UI.
+    /// </summary>
+    public static string FormatRewardPreview(Piece piece, RewardOption option)
+    {
+        if (piece == null)
+            return string.Empty;
+
+        switch (option.Effect)
+        {
+            case RewardEffectKind.StatBoost when option.Stat.HasValue:
+                int statBefore = GetEffectiveStat(piece, option.Stat.Value);
+                int statAfter = statBefore + option.Amount;
+                return $"{option.Description}: {option.Stat.Value} {statBefore}→{statAfter}";
+
+            case RewardEffectKind.MaxHpBoost:
+                int hpBefore = piece.Hp;
+                int maxHpBefore = piece.EffectiveMaxHp;
+                return $"{option.Description}: HP {hpBefore}/{maxHpBefore}→{hpBefore + option.Amount}/{maxHpBefore + option.Amount}";
+
+            case RewardEffectKind.NewAbility:
+                string abilityName = option.Ability == null || string.IsNullOrEmpty(option.Ability.DisplayName)
+                    ? "ability"
+                    : option.Ability.DisplayName;
+                return $"{option.Description}: learn ability {abilityName}";
+
+            default:
+                return option.Description ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Formats a deterministic recipient button label including the current
+    /// vitals and the selected reward's current→post-reward preview.
+    /// </summary>
+    public static string FormatRecipientLabel(Piece piece, RewardOption option)
+    {
+        if (piece == null)
+            return string.Empty;
+
+        string preview = FormatRewardPreview(piece, option);
+        if (string.IsNullOrEmpty(preview))
+            return $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp}";
+
+        return $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp} — {preview}";
+    }
+
+    private static int GetEffectiveStat(Piece piece, StatType stat)
+    {
+        switch (stat)
+        {
+            case StatType.Damage:
+                return piece.EffectiveDamage;
+            case StatType.AttackRange:
+                return piece.EffectiveAttackRange;
+            case StatType.MoveRange:
+                return piece.EffectiveMoveRange;
+            default:
+                return 0;
+        }
     }
 
     private void OnRecipientClicked(string pieceId)

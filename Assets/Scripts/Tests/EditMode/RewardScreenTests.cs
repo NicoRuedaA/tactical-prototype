@@ -127,4 +127,66 @@ public sealed class RewardScreenTests
             Object.DestroyImmediate(screenObject);
         }
     }
+
+    [Test]
+    public void FormatRewardPreview_DamageShowsEffectiveCurrentAndAfterWithoutMutation()
+    {
+        var piece = new Piece("p1", Team.Player, 10, 2, 1, 2, 5, name: "Alpha");
+        var option = new RewardOption("+2 Damage", RewardEffectKind.StatBoost, StatType.Damage, 2);
+
+        string preview = RewardScreen.FormatRewardPreview(piece, option);
+
+        Assert.That(preview, Is.EqualTo("+2 Damage: Damage 2→4"));
+        Assert.That(piece.EffectiveDamage, Is.EqualTo(2));
+        Assert.That(piece.Hp, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void FormatRewardPreview_MaxHpShowsHpAndMaxHpCurrentAndAfterWithoutMutation()
+    {
+        var piece = new Piece("p1", Team.Player, 10, 2, 1, 2, 5, name: "Alpha");
+        piece.TakeDamage(3);
+        var option = new RewardOption("+2 Max HP", RewardEffectKind.MaxHpBoost, null, 2);
+
+        string preview = RewardScreen.FormatRewardPreview(piece, option);
+
+        Assert.That(preview, Is.EqualTo("+2 Max HP: HP 7/10→9/12"));
+        Assert.That(piece.Hp, Is.EqualTo(7));
+        Assert.That(piece.EffectiveMaxHp, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void FormatRewardPreview_AbilityShowsExplicitLearnPreviewWithoutMutation()
+    {
+        var piece = new Piece("p1", Team.Player, 10, 2, 1, 2, 5, name: "Alpha");
+        var ability = new TestAbility("Fireball");
+        var option = new RewardOption("Learn: Fireball", RewardEffectKind.NewAbility, null, 0, ability);
+
+        string preview = RewardScreen.FormatRewardPreview(piece, option);
+
+        Assert.That(preview, Is.EqualTo("Learn: Fireball: learn ability Fireball"));
+        Assert.That(piece.Abilities, Is.Empty);
+        Assert.That(piece.EffectiveDamage, Is.EqualTo(2));
+    }
+
+    private sealed class TestAbility : IAbilityData
+    {
+        public TestAbility(string displayName)
+        {
+            DisplayName = displayName;
+        }
+
+        public string DisplayName { get; }
+        public AbilityType AbilityType => AbilityType.Active;
+        public int ManaCost => 2;
+        public int ActiveRange => 2;
+        public PassiveTrigger Trigger => PassiveTrigger.OnHit;
+        public EffectType EffectType => EffectType.Damage;
+        public int EffectValue => 3;
+        public StatType StatToModify => StatType.Damage;
+        public int AreaRadius => 0;
+        public AffectsTeam AffectsTeam => AffectsTeam.Enemies;
+        public DurationType DurationType => DurationType.FixedTurns;
+        public int DurationTurns => 1;
+    }
 }

@@ -179,7 +179,7 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 
 - Define rewards as data assets rather than text-driven behavior.
 - [x] Let the player choose which unit receives a reward.
-- Show current values and the exact post-reward result before confirmation.
+- [x] Show current values and the exact post-reward result before confirmation.
 - [x] Remove text parsing for Max HP and use explicit reward effects.
 - Use `EffectiveMaxHp` consistently in rules and UI.
 - Prevent duplicate or incompatible abilities.
@@ -206,6 +206,18 @@ the Unity Console reports **0 errors and 0 warnings**.
 reward descriptions are UI-only and are no longer parsed to apply gameplay effects.
 The reward recipient flow is covered by the player-selected reward recipients
 slice above.
+
+### Reward preview slice ✅ Verified (2026-07-24)
+
+Inline recipient buttons now show the pending reward description and exact
+current→post-reward values: effective stat changes for stat rewards, HP/effective
+max HP changes for vitality rewards, and an explicit ability learn label. Pure,
+non-mutating formatters keep the preview read-only until the recipient confirms.
+
+Focused `RewardScreenTests` pass **7/7**; `git diff --check` is clean, and Unity
+compilation is clean with no C# errors. The previous slice's retained full-suite
+evidence remains **190/190 EditMode** and **31/31 PlayMode**; those suites were not
+rerun for this bounded preview slice.
 
 ### Exit criteria
 
