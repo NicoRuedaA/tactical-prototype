@@ -10,23 +10,60 @@ using Game.Core;
 public enum RewardType { StatBoost, NewAbility }
 
 /// <summary>
+/// Explicit gameplay effect carried by a reward option.
+/// </summary>
+public enum RewardEffectKind { StatBoost, MaxHpBoost, NewAbility }
+
+/// <summary>
 /// Describes a single reward option the player can pick.
 /// </summary>
 public readonly struct RewardOption
 {
     public readonly string Description;
     public readonly RewardType Type;
+    public readonly RewardEffectKind Effect;
     public readonly StatType? Stat;
     public readonly int Amount;
     public readonly IAbilityData Ability;
 
     public RewardOption(string description, RewardType type, StatType? stat, int amount, IAbilityData ability = null)
+        : this(description, ToEffectKind(type), type, stat, amount, ability)
+    {
+    }
+
+    public RewardOption(string description, RewardEffectKind effect, StatType? stat, int amount, IAbilityData ability = null)
+        : this(description, effect, ToRewardType(effect), stat, amount, ability)
+    {
+    }
+
+    private RewardOption(
+        string description,
+        RewardEffectKind effect,
+        RewardType type,
+        StatType? stat,
+        int amount,
+        IAbilityData ability)
     {
         Description = description;
         Type = type;
+        Effect = effect;
         Stat = stat;
         Amount = amount;
         Ability = ability;
+    }
+
+    private static RewardEffectKind ToEffectKind(RewardType type)
+    {
+        return type == RewardType.NewAbility
+            ? RewardEffectKind.NewAbility
+            : RewardEffectKind.StatBoost;
+    }
+
+    private static RewardType ToRewardType(RewardEffectKind effect)
+    {
+        return effect == RewardEffectKind.NewAbility
+            ? RewardType.NewAbility
+            : RewardType.StatBoost;
     }
 }
 
@@ -56,12 +93,12 @@ public class RewardScreen : MonoBehaviour
 
     private static readonly RewardOption[] RewardPool = new[]
     {
-        new RewardOption("+1 Damage",      RewardType.StatBoost,  StatType.Damage,      1),
-        new RewardOption("+1 Max HP",      RewardType.StatBoost,  StatType.Damage,      1), // special handling via ApplyMaxHpBoost
-        new RewardOption("+1 Move Range",  RewardType.StatBoost,  StatType.MoveRange,   1),
-        new RewardOption("+1 Attack Range", RewardType.StatBoost,  StatType.AttackRange, 1),
-        new RewardOption("Learn: Fireball", RewardType.NewAbility, null,                 0, new InlineAbility("Fireball", AbilityType.Active, 2, 2, EffectType.Damage, 3, 0, AffectsTeam.Enemies)),
-        new RewardOption("Learn: Heal",    RewardType.NewAbility, null,                 0, new InlineAbility("Heal", AbilityType.Active, 2, 2, EffectType.Heal, 3, 0, AffectsTeam.Allies)),
+        new RewardOption("+1 Damage",      RewardEffectKind.StatBoost,  StatType.Damage,      1),
+        new RewardOption("+1 Max HP",      RewardEffectKind.MaxHpBoost, null,                1),
+        new RewardOption("+1 Move Range",  RewardEffectKind.StatBoost,  StatType.MoveRange,   1),
+        new RewardOption("+1 Attack Range", RewardEffectKind.StatBoost, StatType.AttackRange, 1),
+        new RewardOption("Learn: Fireball", RewardEffectKind.NewAbility, null,                0, new InlineAbility("Fireball", AbilityType.Active, 2, 2, EffectType.Damage, 3, 0, AffectsTeam.Enemies)),
+        new RewardOption("Learn: Heal",    RewardEffectKind.NewAbility, null,                0, new InlineAbility("Heal", AbilityType.Active, 2, 2, EffectType.Heal, 3, 0, AffectsTeam.Allies)),
     };
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -129,16 +166,17 @@ public class RewardScreen : MonoBehaviour
 
     private static string GetIcon(RewardOption option)
     {
-        return option.Type switch
+        return option.Effect switch
         {
-            RewardType.StatBoost => option.Stat switch
+            RewardEffectKind.StatBoost => option.Stat switch
             {
                 StatType.Damage => "\u2694",       // sword
                 StatType.AttackRange => "\uD83C\uDFAF", // target
                 StatType.MoveRange => "\uD83D\uDC5F",   // boot
                 _ => "?"
             },
-            RewardType.NewAbility => "\u2B50",     // star
+            RewardEffectKind.MaxHpBoost => "\u2764", // heart
+            RewardEffectKind.NewAbility => "\u2B50", // star
             _ => "?"
         };
     }
@@ -195,18 +233,17 @@ public class RewardScreen : MonoBehaviour
 
     private void ApplyReward(Piece piece, RewardOption option)
     {
-        switch (option.Type)
+        switch (option.Effect)
         {
-            case RewardType.StatBoost when option.Stat == StatType.Damage && option.Description == "+1 Max HP":
-                // Special case: "+1 Max HP" uses ApplyMaxHpBoost
+            case RewardEffectKind.MaxHpBoost:
                 _runState.ApplyMaxHpBoost(piece.Id, option.Amount);
                 break;
 
-            case RewardType.StatBoost when option.Stat.HasValue:
+            case RewardEffectKind.StatBoost when option.Stat.HasValue:
                 _runState.ApplyStatBoost(piece.Id, option.Stat.Value, option.Amount);
                 break;
 
-            case RewardType.NewAbility when option.Ability != null:
+            case RewardEffectKind.NewAbility when option.Ability != null:
                 _runState.AddAbility(piece.Id, option.Ability);
                 break;
         }

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.3 — Explicit Reward Effects (2026-07-24)
+
+### Changed
+- **Reward effects**: `RewardOption` now carries explicit `RewardEffectKind` metadata,
+  including `MaxHpBoost`; descriptions remain UI-only and are not parsed for gameplay.
+
+### Scope
+- Player-selected reward recipients remain the next Phase 3 deliverable.
+
+### Verification
+- Focused reward tests: **4/4** passed.
+- Full suites: **188/188 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline `CollectErrors`: empty; Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7.2 — Route/Roster State Display (2026-07-24)
 
 ### Added

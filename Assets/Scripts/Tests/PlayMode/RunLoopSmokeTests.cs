@@ -415,13 +415,13 @@ namespace Game.PlayMode.Tests
         {
             PieceProgress after = PieceProgress.Capture(piece);
 
-            if (option.Type == RewardType.NewAbility)
+            if (option.Effect == RewardEffectKind.NewAbility)
             {
                 Assert.That(after.AbilityCount, Is.EqualTo(before.AbilityCount + 1));
                 return;
             }
 
-            if (option.Description == "+1 Max HP")
+            if (option.Effect == RewardEffectKind.MaxHpBoost)
             {
                 Assert.That(after.MaxHp, Is.EqualTo(before.MaxHp + option.Amount));
                 Assert.That(after.Hp, Is.EqualTo(before.Hp + option.Amount));
