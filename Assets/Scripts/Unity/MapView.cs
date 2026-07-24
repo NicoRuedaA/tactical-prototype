@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using Game.Core;
@@ -116,7 +117,10 @@ public class MapView : MonoBehaviour
 
         // Draw connection lines between nodes
         DrawConnectionLines(nodeButtons, nodeStates);
-        SetStatusText(GetDefaultStatus(mgr.CurrentRun.Graph));
+        var restResult = mgr.ConsumePendingRestHealResult();
+        SetStatusText(restResult != null
+            ? FormatRestHealResult(restResult)
+            : GetDefaultStatus(mgr.CurrentRun.Graph));
     }
 
     // ── Button creation ───────────────────────────────────────────────────────
@@ -505,6 +509,51 @@ public class MapView : MonoBehaviour
                 return MapConnectionState.Visited;
         }
         return MapConnectionState.Blocked;
+    }
+
+    /// <summary>
+    /// Formats a Rest result for the map status line. Pure function so the exact
+    /// presentation can be verified without loading a Unity scene.
+    /// </summary>
+    public static string FormatRestHealResult(RestHealResult result)
+    {
+        if (result == null)
+            return string.Empty;
+
+        var builder = new StringBuilder();
+        builder.Append("REST — healed ")
+            .Append(result.TotalDelta)
+            .Append(" HP (")
+            .Append(result.ConfiguredPercent)
+            .Append("% of EffectiveMaxHp)");
+
+        if (result.Pieces.Count > 0)
+        {
+            builder.Append(": ");
+            for (int i = 0; i < result.Pieces.Count; i++)
+            {
+                if (i > 0)
+                    builder.Append(", ");
+
+                var piece = result.Pieces[i];
+                if (piece == null)
+                {
+                    builder.Append("unknown piece");
+                    continue;
+                }
+
+                builder.Append(string.IsNullOrEmpty(piece.PieceName) ? piece.PieceId : piece.PieceName)
+                    .Append(' ')
+                    .Append(piece.BeforeHp)
+                    .Append('→')
+                    .Append(piece.AfterHp)
+                    .Append(" (+")
+                    .Append(piece.Delta)
+                    .Append(')');
+            }
+        }
+
+        return builder.ToString();
     }
 
     private Color GetNodeStateColor(MapNode node, MapNodeState state)

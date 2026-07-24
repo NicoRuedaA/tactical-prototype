@@ -79,6 +79,12 @@ public sealed class RunManager : MonoBehaviour
     /// <summary>True when the last run ended in victory (boss cleared).</summary>
     public bool LastRunWasVictory { get; private set; }
 
+    /// <summary>
+    /// The most recent Rest node result, pending presentation on the returned Map
+    /// scene. MapView consumes this once so subsequent rebuilds show the route prompt.
+    /// </summary>
+    public RestHealResult PendingRestHealResult { get; private set; }
+
     /// <summary>Increments each time the player clears a combat. Used to index enemy team config.</summary>
     private int _currentCombatIndex;
 
@@ -147,6 +153,7 @@ public sealed class RunManager : MonoBehaviour
 
         CurrentRunSeed = seed ?? GenerateRunSeed();
         _currentCombatIndex = 0;
+        PendingRestHealResult = null;
         var graph = MapGenerator.Generate(seed: CurrentRunSeed, rows: 2, nodesPerRow: 3);
         CurrentRun = new RunState(pieces, graph);
         CurrentPhase = RunPhase.Map;
@@ -340,6 +347,7 @@ public sealed class RunManager : MonoBehaviour
         CurrentRunSeed = 0;
         _currentCombatIndex = 0;
         _currentNodeType = default;
+        PendingRestHealResult = null;
 
         if (startNewRun)
             StartNewRun();
@@ -354,13 +362,27 @@ public sealed class RunManager : MonoBehaviour
 
     private void ApplyRestHeal()
     {
-        int count = 0;
+        var pieces = new List<RestHealPieceResult>();
         foreach (var piece in CurrentRun.GetAlivePlayerPieces())
         {
+            int beforeHp = piece.Hp;
             piece.HealPercentEffective(RestHealPercent);
-            count++;
+            pieces.Add(new RestHealPieceResult(piece.Id, piece.Name, beforeHp, piece.Hp));
         }
-        Debug.Log($"Rest healed {count} alive pieces by {RestHealPercent}% of EffectiveMaxHp.");
+        PendingRestHealResult = new RestHealResult(RestHealPercent, pieces);
+        Debug.Log($"Rest healed {pieces.Count} alive pieces for {PendingRestHealResult.TotalDelta} HP " +
+                  $"({RestHealPercent}% of EffectiveMaxHp).");
+    }
+
+    /// <summary>
+    /// Returns and clears the pending Rest result. Presentation consumers should
+    /// call this exactly once when the Map scene is rebuilt.
+    /// </summary>
+    public RestHealResult ConsumePendingRestHealResult()
+    {
+        var result = PendingRestHealResult;
+        PendingRestHealResult = null;
+        return result;
     }
 
     private void EndRun()

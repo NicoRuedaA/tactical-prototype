@@ -132,7 +132,7 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 
 - [x] Draw map connections and distinguish current, available, visited, and blocked nodes.
 - [x] Add clear identities and explanations for combat, elite, rest, and boss nodes. Keep Shop labels compatible for future content.
-- Show the exact result of resting before returning to the map.
+- [x] Show the exact result of resting before returning to the map.
 - [x] Remove non-actionable Shop nodes from generation for the vertical slice; retain the node type and labels for future scope.
 - Preserve and display route and roster state across scene transitions.
 
@@ -142,6 +142,17 @@ The first strategic-map slice is complete: route state is explicit, connections 
 available/visited/blocked paths, and node labels plus hover text explain each destination.
 Focused `MapView` tests pass **4/4**; the full suites pass **181/181 EditMode** and
 **31/31 PlayMode** tests.
+
+### Rest-result slice ✅ Verified (2026-07-24)
+
+Rest nodes now capture the configured heal percentage and exact clamped HP change
+for every alive piece. MapView presents that result once in the runtime status on
+return to the Map scene, then restores the normal route prompt. A dedicated modal
+remains future UX; route and roster preservation remain separate deliverables.
+
+Focused rest-result tests pass **12/12**; the full suites pass **184/184 EditMode**
+and **31/31 PlayMode** tests. The project baseline validator reports **0 errors**,
+and the Unity Console reports **0 errors and 0 warnings**.
 
 ### Exit criteria
 

@@ -100,6 +100,50 @@ public sealed class RunReproducibilityTests
         }
     }
 
+    [Test]
+    public void RunManager_CapturesPendingRestResult_ForAlivePiecesAndClampedDeltas()
+    {
+        var managerObject = new GameObject("Rest Result RunManager");
+        var playerA = CreateCharacter("Player A");
+        var playerB = CreateCharacter("Player B");
+
+        try
+        {
+            var manager = managerObject.AddComponent<RunManager>();
+            manager.PlayerTeam = new[] { playerA, playerB };
+            manager.RestHealPercent = 50;
+            InitializeWithoutSceneLoad(manager, 919191);
+
+            var alive = manager.CurrentRun.Pieces[0];
+            var dead = manager.CurrentRun.Pieces[1];
+            alive.TakeDamage(8); // 2 -> 7 after a 50% heal, clamped by MaxHp.
+            dead.TakeDamage(10);
+
+            typeof(RunManager)
+                .GetMethod("ApplyRestHeal", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(manager, null);
+
+            var result = manager.PendingRestHealResult;
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.ConfiguredPercent, Is.EqualTo(50));
+            Assert.That(result.TotalDelta, Is.EqualTo(5));
+            Assert.That(result.Pieces.Count, Is.EqualTo(1));
+            Assert.That(result.Pieces[0].PieceId, Is.EqualTo(alive.Id));
+            Assert.That(result.Pieces[0].BeforeHp, Is.EqualTo(2));
+            Assert.That(result.Pieces[0].AfterHp, Is.EqualTo(7));
+            Assert.That(result.Pieces[0].Delta, Is.EqualTo(5));
+
+            Assert.That(manager.ConsumePendingRestHealResult(), Is.SameAs(result));
+            Assert.That(manager.ConsumePendingRestHealResult(), Is.Null);
+        }
+        finally
+        {
+            Object.DestroyImmediate(managerObject);
+            Object.DestroyImmediate(playerA);
+            Object.DestroyImmediate(playerB);
+        }
+    }
+
     private static string BuildRunSnapshot(int seed, int progressIndex)
     {
         var managerObject = new GameObject($"Snapshot RunManager {seed}");

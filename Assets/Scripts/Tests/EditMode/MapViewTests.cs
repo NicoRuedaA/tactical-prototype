@@ -77,5 +77,28 @@ namespace Game.Core.Tests
             Assert.AreEqual(MapNodeState.Visited, states["start"]);
             Assert.AreEqual(MapNodeState.Blocked, states["combat"]);
         }
+
+        [Test]
+        public void FormatRestHealResult_IncludesConfiguredPercentTotalAndClampedPerPieceValues()
+        {
+            var result = new RestHealResult(30, new[]
+            {
+                new RestHealPieceResult("a", "Alpha", 4, 7),
+                new RestHealPieceResult("b", "Beta", 10, 10),
+            });
+
+            var text = MapView.FormatRestHealResult(result);
+
+            StringAssert.Contains("30%", text);
+            StringAssert.Contains("healed 3 HP", text);
+            StringAssert.Contains("Alpha 4→7 (+3)", text);
+            StringAssert.Contains("Beta 10→10 (+0)", text);
+        }
+
+        [Test]
+        public void FormatRestHealResult_ReturnsEmptyForMissingResult()
+        {
+            Assert.AreEqual(string.Empty, MapView.FormatRestHealResult(null));
+        }
     }
 }

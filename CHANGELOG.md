@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.1 — Rest Result Presentation (2026-07-24)
+
+### Added
+- **Rest-result status**: returning to the Map scene presents the configured heal percentage and exact clamped HP deltas for each alive piece once, then falls back to the normal route prompt.
+
+### Scope
+- No dedicated rest modal is introduced in this bounded slice; route and roster preservation remain separate Phase 2 deliverables.
+
+### Verification
+- Focused rest-result tests: **12/12** passed.
+- Full suites: **184/184 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validator: **0 errors**; Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7 — Strategic Map Readability (2026-07-24)
 
 ### Added
