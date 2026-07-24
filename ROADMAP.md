@@ -258,6 +258,21 @@ audit; no production code changed.
 The retained full-suite evidence remains **198/198 EditMode** and **31/31
 PlayMode** tests, with **0 Console errors and 0 warnings**.
 
+### Pass-turn mana recovery slice ✅ Verified (2026-07-24)
+
+Pass remains a legal no-target action. When a unit passes, the Core engine restores
+the configurable pass recovery amount (default **1 mana**), clamps the result to
+`MaxMana`, then advances the turn. `CombatActionResult` exposes `ManaBefore`,
+`ManaAfter`, and `ManaDelta` for presentation feedback, while the existing
+`Pass()` and typed action APIs remain compatible. Recovery is overflow-safe for extreme
+configuration values, and the original two-parameter `CombatEngine` constructor remains
+available for binary compatibility.
+
+Focused pass-recovery tests pass **6/6**; the full suites pass **203/203 EditMode**
+and **31/31 PlayMode** tests. The Unity Console reports **0 errors and 0 warnings**,
+and `EditorSettings.m_EnterPlayModeOptions` was restored to its baseline value of
+`0` after verification.
+
 ### Exit criteria
 
 - Two runs can produce meaningfully different builds.

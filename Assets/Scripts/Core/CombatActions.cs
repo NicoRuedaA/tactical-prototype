@@ -93,12 +93,16 @@ namespace Game.Core
             CombatActionRequest request,
             CombatActionRejection rejection,
             bool wasExecuted,
-            IReadOnlyList<Piece> legalTargets)
+            IReadOnlyList<Piece> legalTargets,
+            int manaBefore,
+            int manaAfter)
         {
             Request = request;
             Rejection = rejection;
             WasExecuted = wasExecuted;
             LegalTargets = legalTargets ?? NoTargets;
+            ManaBefore = manaBefore;
+            ManaAfter = manaAfter;
         }
 
         public CombatActionRequest Request { get; }
@@ -106,16 +110,30 @@ namespace Game.Core
         public bool IsAllowed => Rejection == CombatActionRejection.None;
         public bool WasExecuted { get; }
         public IReadOnlyList<Piece> LegalTargets { get; }
+        /// <summary>Actor mana immediately before the action was evaluated/executed.</summary>
+        public int ManaBefore { get; }
+        /// <summary>Actor mana immediately after the action was executed (or the current value for previews).</summary>
+        public int ManaAfter { get; }
+        /// <summary>Change in actor mana reported by this action.</summary>
+        public int ManaDelta => ManaAfter - ManaBefore;
 
         internal static CombatActionResult Allowed(
             CombatActionRequest request,
             IReadOnlyList<Piece> legalTargets = null,
-            bool wasExecuted = false) =>
-            new CombatActionResult(request, CombatActionRejection.None, wasExecuted, legalTargets);
+            bool wasExecuted = false,
+            int? manaBefore = null,
+            int? manaAfter = null) =>
+            new CombatActionResult(
+                request,
+                CombatActionRejection.None,
+                wasExecuted,
+                legalTargets,
+                manaBefore ?? request?.Actor?.Mana ?? 0,
+                manaAfter ?? request?.Actor?.Mana ?? 0);
 
         internal static CombatActionResult Rejected(
             CombatActionRequest request,
             CombatActionRejection rejection) =>
-            new CombatActionResult(request, rejection, false, NoTargets);
+            new CombatActionResult(request, rejection, false, NoTargets, 0, 0);
     }
 }

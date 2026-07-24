@@ -45,11 +45,25 @@ namespace Game.Core
         public event Action                                  OnTurnStart;
 
         public int TurnCount { get; private set; }
+        /// <summary>Default mana restored by a legal pass.</summary>
+        public const int DefaultPassManaRecovery = 1;
+        /// <summary>Mana restored by a legal pass for this combat.</summary>
+        public int PassManaRecovery { get; }
 
+        // Keep the original two-parameter constructor for binary compatibility.
         public CombatEngine(Board board, IEnumerable<Piece> pieces)
+            : this(board, pieces, DefaultPassManaRecovery)
+        {
+        }
+
+        public CombatEngine(
+            Board board,
+            IEnumerable<Piece> pieces,
+            int passManaRecovery)
         {
             Board   = board;
             _pieces = pieces.ToList();
+            PassManaRecovery = passManaRecovery < 0 ? 0 : passManaRecovery;
             foreach (var p in _pieces)
                 Board.Place(p, p.Coords);
 
@@ -173,6 +187,7 @@ namespace Game.Core
                 return evaluation;
 
             Piece actor = request.Actor;
+            int manaBefore = actor.Mana;
             switch (request.Kind)
             {
                 case CombatActionKind.Move:
@@ -195,11 +210,17 @@ namespace Game.Core
                     break;
 
                 case CombatActionKind.Pass:
+                    actor.RestoreMana(PassManaRecovery);
                     EndTurn();
                     break;
             }
 
-            return CombatActionResult.Allowed(request, evaluation.LegalTargets, true);
+            return CombatActionResult.Allowed(
+                request,
+                evaluation.LegalTargets,
+                true,
+                manaBefore,
+                actor.Mana);
         }
 
         // ── Actions ──────────────────────────────────────────────────────────

@@ -590,6 +590,90 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void Pass_RestoresDefaultManaAndReportsFeedback()
+        {
+            var setup = CreateDuel(maxMana: 5);
+            setup.Player.SpendMana(3);
+
+            CombatActionResult result = setup.Engine.ExecuteAction(
+                CombatActionRequest.Pass(setup.Player));
+
+            Assert.AreEqual(2, result.ManaBefore);
+            Assert.AreEqual(3, result.ManaAfter);
+            Assert.AreEqual(1, result.ManaDelta);
+            Assert.AreEqual(3, setup.Player.Mana);
+            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.AreEqual(1, setup.Engine.TurnCount);
+        }
+
+        [Test]
+        public void Pass_ClampsRecoveryAtMaxMana()
+        {
+            var setup = CreateDuel(maxMana: 3);
+            setup.Player.SpendMana(1);
+
+            CombatActionResult result = setup.Engine.ExecuteAction(
+                CombatActionRequest.Pass(setup.Player));
+
+            Assert.AreEqual(2, result.ManaBefore);
+            Assert.AreEqual(3, result.ManaAfter);
+            Assert.AreEqual(1, result.ManaDelta);
+            Assert.AreEqual(3, setup.Player.Mana);
+        }
+
+        [Test]
+        public void Pass_WithZeroMaxManaDoesNotCreateManaButStillAdvancesTurn()
+        {
+            var setup = CreateDuel(maxMana: 0);
+
+            CombatActionResult result = setup.Engine.ExecuteAction(
+                CombatActionRequest.Pass(setup.Player));
+
+            Assert.AreEqual(0, result.ManaBefore);
+            Assert.AreEqual(0, result.ManaAfter);
+            Assert.AreEqual(0, result.ManaDelta);
+            Assert.AreEqual(0, setup.Player.Mana);
+            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.AreEqual(1, setup.Engine.TurnCount);
+        }
+
+        [Test]
+        public void Pass_UsesConfigurableCoreRecoveryValue()
+        {
+            var board = Board.CreateRectangle(6, 6);
+            var player = NewPiece("P", Team.Player, 10, maxMana: 5);
+            var enemy = NewPiece("E", Team.Enemy, 1, at: new Axial(2, 0));
+            player.SpendMana(4);
+            var engine = new CombatEngine(board, new[] { player, enemy }, passManaRecovery: 2);
+
+            CombatActionResult result = engine.ExecuteAction(
+                CombatActionRequest.Pass(player));
+
+            Assert.AreEqual(1, result.ManaBefore);
+            Assert.AreEqual(3, result.ManaAfter);
+            Assert.AreEqual(2, result.ManaDelta);
+            Assert.AreEqual(2, engine.PassManaRecovery);
+        }        [Test]
+        public void Pass_WithMaxIntRecoveryClampsWithoutOverflow()
+        {
+            var board = Board.CreateRectangle(6, 6);
+            var player = NewPiece("P", Team.Player, 10, maxMana: int.MaxValue);
+            var enemy = NewPiece("E", Team.Enemy, 1, at: new Axial(2, 0));
+            player.SpendMana(int.MaxValue - 1);
+            var engine = new CombatEngine(board, new[] { player, enemy }, int.MaxValue);
+
+            CombatActionResult result = engine.ExecuteAction(
+                CombatActionRequest.Pass(player));
+
+            Assert.AreEqual(1, result.ManaBefore);
+            Assert.AreEqual(int.MaxValue, result.ManaAfter);
+            Assert.AreEqual(int.MaxValue - 1, result.ManaDelta);
+            Assert.AreEqual(int.MaxValue, player.Mana);
+        }
+
+
+
+        [Test]
         public void LegacyBooleanApis_RemainCompatible()
         {
             var move = CreateDuel(enemyAt: new Axial(3, 0));

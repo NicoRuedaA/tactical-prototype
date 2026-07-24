@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.7.9 — Pass-Turn Mana Recovery (2026-07-24)
+
+### Added
+- **Pass recovery**: legal no-target Pass actions restore a configurable default
+  of **1 mana**, clamped to each unit's `MaxMana`, before advancing the turn.
+- **Action feedback**: `CombatActionResult` exposes `ManaBefore`, `ManaAfter`, and
+  `ManaDelta` so presentation can communicate the recovery without reproducing Core rules.
+- **Safety and compatibility**: recovery clamps before addition to prevent integer overflow,
+  and the original two-parameter `CombatEngine` constructor remains available.
+
+### Changed
+- **API compatibility**: existing `Pass()` and typed action entry points remain valid;
+  the recovery value is configured centrally by `CombatEngine` in `Game.Core`.
+
+### Verification
+- Focused pass-recovery tests: **6/6** passed.
+- Full suites: **203/203 EditMode** and **31/31 PlayMode** tests passed.
+- Unity Console: **0 errors and 0 warnings**; `EditorSettings.m_EnterPlayModeOptions`
+  restored to baseline `0` after PlayMode verification.
+
 ## v0.7.8 — Reward Determinism Audit (2026-07-24)
 
 ### Changed

@@ -108,8 +108,11 @@ namespace Game.Core
         public void RestoreMana(int amount)
         {
             if (amount <= 0) return;
-            Mana += amount;
-            if (Mana > MaxMana) Mana = MaxMana;
+
+            // Compare against the missing amount before adding so large recovery
+            // values (for example int.MaxValue) cannot overflow the backing int.
+            int missing = MaxMana - Mana;
+            Mana = amount >= missing ? MaxMana : Mana + amount;
         }
 
         // --- Run progression (ability / stat boost management) ---
