@@ -100,5 +100,28 @@ namespace Game.Core.Tests
         {
             Assert.AreEqual(string.Empty, MapView.FormatRestHealResult(null));
         }
+
+        [Test]
+        public void FormatRosterSummary_PreservesRosterOrderAndCurrentHp()
+        {
+            var queen = new Piece("queen", Team.Player, 12, 4, 1, 2, 5, true, "Queen");
+            var pawn = new Piece("pawn", Team.Player, 8, 3, 1, 2, 4, false, "Pawn");
+            pawn.TakeDamage(3);
+
+            var text = MapView.FormatRosterSummary(new[] { queen, pawn });
+
+            Assert.AreEqual("ROSTER — Queen HP 12/12 | Pawn HP 5/8", text);
+        }
+
+        [Test]
+        public void FormatRosterSummary_MarksDefeatedPiecesAndHandlesMissingRoster()
+        {
+            var defeated = new Piece("fallen", Team.Player, 6, 2, 1, 1, 1, name: "Fallen");
+            defeated.TakeDamage(99);
+
+            StringAssert.Contains("Fallen HP 0/6 (DEFEATED)",
+                MapView.FormatRosterSummary(new[] { defeated }));
+            Assert.AreEqual("ROSTER — no player pieces.", MapView.FormatRosterSummary(null));
+        }
     }
 }

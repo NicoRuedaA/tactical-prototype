@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.2 — Route/Roster State Display (2026-07-24)
+
+### Added
+- **Roster summary**: Map rebuilds derive a deterministic runtime summary from the
+  persisted player pieces, showing names, current HP/effective max HP, and defeated
+  state alongside the route.
+
+### Scope
+- Route and roster state continue to come from the existing RunManager/RunState
+  references across scene transitions; this slice does not change persistence.
+
+### Verification
+- Focused `MapView` tests: **8/8** passed.
+- Full suites: **186/186 EditMode** and **31/31 PlayMode** tests passed.
+- Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7.1 — Rest Result Presentation (2026-07-24)
 
 ### Added

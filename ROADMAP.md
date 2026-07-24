@@ -134,7 +134,7 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 - [x] Add clear identities and explanations for combat, elite, rest, and boss nodes. Keep Shop labels compatible for future content.
 - [x] Show the exact result of resting before returning to the map.
 - [x] Remove non-actionable Shop nodes from generation for the vertical slice; retain the node type and labels for future scope.
-- Preserve and display route and roster state across scene transitions.
+- [x] Preserve and display route and roster state across scene transitions.
 
 ### Map readability slice ✅ Verified (2026-07-24)
 
@@ -153,6 +153,17 @@ remains future UX; route and roster preservation remain separate deliverables.
 Focused rest-result tests pass **12/12**; the full suites pass **184/184 EditMode**
 and **31/31 PlayMode** tests. The project baseline validator reports **0 errors**,
 and the Unity Console reports **0 errors and 0 warnings**.
+
+### Route/roster state slice ✅ Verified (2026-07-24)
+
+MapView now derives a deterministic roster summary from `RunManager.CurrentRun.Pieces`
+on every rebuild, showing each piece's name, current HP/effective max HP, and
+defeated state. Route state remains graph-derived and is preserved by the existing
+RunManager/RunState references across scene transitions; no persistence changes were
+needed.
+
+Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** and
+**31/31 PlayMode** tests. The Unity Console reports **0 errors and 0 warnings**.
 
 ### Exit criteria
 

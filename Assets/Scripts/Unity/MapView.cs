@@ -66,6 +66,7 @@ public class MapView : MonoBehaviour
     private readonly List<LineRenderer> _spawnedLines = new List<LineRenderer>();
     private MapGraph _currentGraph;
     private Text _statusText;
+    private Text _rosterText;
     private string _hoveredNodeId;
     private Material _runtimeLineMaterial;
 
@@ -106,6 +107,10 @@ public class MapView : MonoBehaviour
         var nodeButtons = new Dictionary<string, RectTransform>();
         var availableNodes = mgr.CurrentRun.GetAvailableNodes();
         var nodeStates = BuildNodeStates(_currentGraph, availableNodes);
+
+        EnsureRosterText(EnsureContentContainer());
+        if (_rosterText != null)
+            _rosterText.text = FormatRosterSummary(mgr.CurrentRun.Pieces);
 
         // Spawn button for each node
         foreach (var kvp in _currentGraph.Nodes)
@@ -299,6 +304,20 @@ public class MapView : MonoBehaviour
         _statusText = CreateRuntimeText(parent, string.Empty, 15, TextAnchor.UpperLeft);
         _statusText.rectTransform.anchoredPosition = new Vector2(120f, -280f);
         _statusText.rectTransform.sizeDelta = new Vector2(800f, 42f);
+
+        EnsureRosterText(parent);
+    }
+
+    private void EnsureRosterText(Transform parent)
+    {
+        if (_rosterText != null || parent == null)
+            return;
+
+        _rosterText = CreateRuntimeText(parent, string.Empty, 15, TextAnchor.UpperLeft);
+        _rosterText.name = "Map Roster Summary";
+        _rosterText.rectTransform.anchoredPosition = new Vector2(350f, -210f);
+        _rosterText.rectTransform.sizeDelta = new Vector2(300f, 100f);
+        _spawnedButtons.Add(_rosterText.gameObject);
     }
 
     private static Text CreateRuntimeText(Transform parent, string value, int fontSize, TextAnchor alignment)
@@ -427,6 +446,7 @@ public class MapView : MonoBehaviour
         _spawnedLines.Clear();
 
         _statusText = null;
+        _rosterText = null;
         _hoveredNodeId = null;
 
         _currentGraph = null;
@@ -551,6 +571,40 @@ public class MapView : MonoBehaviour
                     .Append(piece.Delta)
                     .Append(')');
             }
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Formats the persisted player roster for the map screen. The input order
+    /// is preserved so the summary stays stable with the authored run roster.
+    /// </summary>
+    public static string FormatRosterSummary(IReadOnlyList<Piece> pieces)
+    {
+        if (pieces == null || pieces.Count == 0)
+            return "ROSTER — no player pieces.";
+
+        var builder = new StringBuilder("ROSTER — ");
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            if (i > 0)
+                builder.Append(" | ");
+
+            var piece = pieces[i];
+            if (piece == null)
+            {
+                builder.Append("unknown piece");
+                continue;
+            }
+
+            builder.Append(string.IsNullOrEmpty(piece.Name) ? piece.Id : piece.Name)
+                .Append(" HP ")
+                .Append(piece.Hp)
+                .Append('/')
+                .Append(piece.EffectiveMaxHp);
+            if (piece.IsDead)
+                builder.Append(" (DEFEATED)");
         }
 
         return builder.ToString();
