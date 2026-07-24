@@ -331,26 +331,28 @@ namespace Game.Core.Tests
                 if (node.Id == graph.StartNodeId || node.Id == graph.BossNodeId)
                     continue;
 
-                // Middle row nodes should be Combat or Elite (not Rest/Shop/Boss)
+                // Middle row nodes should be actionable Combat, Elite, or Rest
+                // (Shop remains reserved for future content and is not generated).
                 Assert.IsTrue(node.Type == MapNodeType.Combat
                            || node.Type == MapNodeType.Elite
-                           || node.Type == MapNodeType.Rest
-                           || node.Type == MapNodeType.Shop,
+                           || node.Type == MapNodeType.Rest,
                     $"Unexpected node type {node.Type} at middle row");
             }
 
-            // Check at most one Rest or Shop per row
+            // Check at most one Rest per row
             var rows = graph.Nodes.Values
                 .Where(n => n.Id != graph.StartNodeId && n.Id != graph.BossNodeId)
                 .GroupBy(n => n.Row);
 
             foreach (var rowGroup in rows)
             {
-                int restOrShop = rowGroup.Count(n =>
-                    n.Type == MapNodeType.Rest || n.Type == MapNodeType.Shop);
-                Assert.LessOrEqual(restOrShop, 1,
-                    $"Row {rowGroup.Key} has {restOrShop} Rest/Shop nodes (max 1)");
+                int restCount = rowGroup.Count(n => n.Type == MapNodeType.Rest);
+                Assert.LessOrEqual(restCount, 1,
+                    $"Row {rowGroup.Key} has {restCount} Rest nodes (max 1)");
             }
+
+            Assert.IsFalse(graph.Nodes.Values.Any(n => n.Type == MapNodeType.Shop),
+                "Shop nodes are reserved for future scope and must not be generated in the vertical slice");
         }
 
         // ════════════════════════════════════════════════════════════════

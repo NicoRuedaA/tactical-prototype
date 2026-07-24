@@ -139,18 +139,19 @@ namespace Game.Core
 
         /// <summary>
         /// Chooses a node type for a middle-row node.
-        /// At most one Rest or Shop per row; others are Combat or Elite.
+        /// Middle rows contain only actionable Combat, Elite, or Rest nodes.
         /// </summary>
         private static MapNodeType ChooseMiddleNodeType(Random rng, int row, int totalRows)
         {
-            // Roll: 70% Combat, 15% Elite, 7% Rest, 8% Shop
-            // Rest and Shop are limited per row — we handle this via post-generation validation
-            // but for simplicity we add random distribution and rely on the count check.
+            // Roll: 70% Combat, 15% Elite, 7% Rest, 8% Combat fallback.
+            // The former Shop roll now falls back to Combat so the vertical slice
+            // keeps deterministic random consumption without generating a node
+            // that has no actionable transaction yet.
             int roll = rng.Next(100);
             if (roll < 70) return MapNodeType.Combat;
             if (roll < 85) return MapNodeType.Elite;
             if (roll < 92) return MapNodeType.Rest;
-            return MapNodeType.Shop;
+            return MapNodeType.Combat;
         }
 
         /// <summary>

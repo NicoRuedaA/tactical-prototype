@@ -6,8 +6,12 @@
 - **Route-state presentation**: current, available, visited, and blocked nodes are visually distinct, with matching connection states.
 - **Map guidance**: node labels identify combat, elite, rest, shop, and boss destinations; hover text explains each node's route state.
 
+### Changed
+- **Shop scope**: Shop remains a future transaction node; procedural generation no longer creates Shop nodes for the vertical slice while the `MapNodeType.Shop` enum and MapView labels remain compatible.
+
 ### Verification
 - Focused `MapView` tests: **4/4** passed.
+- Focused `MapGraph` tests: **3/3** passed.
 - Full suites: **181/181 EditMode** and **31/31 PlayMode** tests passed.
 
 ## v0.6 — Combat Clarity (2026-07-23)

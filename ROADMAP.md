@@ -131,9 +131,9 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 ### Deliverables
 
 - [x] Draw map connections and distinguish current, available, visited, and blocked nodes.
-- [x] Add clear identities and explanations for combat, elite, rest, shop, and boss nodes.
+- [x] Add clear identities and explanations for combat, elite, rest, and boss nodes. Keep Shop labels compatible for future content.
 - Show the exact result of resting before returning to the map.
-- Either implement a minimal shop or remove shop nodes from generation for the vertical slice.
+- [x] Remove non-actionable Shop nodes from generation for the vertical slice; retain the node type and labels for future scope.
 - Preserve and display route and roster state across scene transitions.
 
 ### Map readability slice ✅ Verified (2026-07-24)

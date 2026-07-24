@@ -31,7 +31,6 @@ flowchart LR
     Bootstrap[SampleScene] --> Map
     Map -->|Combat / Elite / Boss| Combat
     Map -->|Rest: heal squad| Map
-    Map -->|Shop: placeholder| Map
     Combat -->|Victory| Reward
     Combat -->|Defeat| GameOver[GameOver: Defeat]
     Reward -->|Run continues| Map
@@ -40,7 +39,7 @@ flowchart LR
     Victory -->|Restart| Map
 ```
 
-During a run, HP and acquired upgrades persist across encounters. Available map nodes lead to normal combat, elite combat, rest, shop, or the boss. A victory presents three reward cards; the selected upgrade is applied to a deterministic alive squad member before the run continues.
+During a run, HP and acquired upgrades persist across encounters. Available map nodes lead to normal combat, elite combat, rest, or the boss. Shop support remains future scope and is not generated in the vertical slice. A victory presents three reward cards; the selected upgrade is applied to a deterministic alive squad member before the run continues.
 
 ## Controls
 
@@ -70,7 +69,7 @@ Each unit gets **one action per turn**: **move, attack, use an ability, or pass*
 
 ### Run and progression
 
-- Procedural layered route map with combat, elite, rest, shop, and boss nodes.
+- Procedural layered route map with combat, elite, rest, and boss nodes. Shop remains a future node type and is not generated in the vertical slice.
 - Persistent squad objects across scenes, including HP, bonus stats, and learned abilities.
 - Three deterministic reward choices drawn from stat boosts and active abilities.
 - Normal enemy rosters cycle by cleared-combat index; elite and boss nodes use their dedicated rosters and AI.
@@ -200,7 +199,7 @@ Ensure `~/.local/bin` is visible to applications launched from the desktop, rest
 ## Current limitations
 
 - Phase 1's only remaining closure gate is manual first-time-player usability validation; automated regression is green. Audio cues are intentionally deferred to Phase 4 content polish.
-- Shop nodes are placeholders: selecting one currently returns to the map without a transaction.
+- Shop support is future scope; Shop nodes are not generated until a transaction is available.
 - Reward recipients are selected automatically; choosing which unit receives an upgrade belongs to Phase 3.
 - The map and reward UI are functional but not yet the final vertical-slice presentation.
 - The supported automated standalone workflow currently targets Linux only.
