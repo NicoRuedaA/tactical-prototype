@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.6 — Ability Reward Deduplication (2026-07-24)
+
+### Added
+- **Exact duplicate protection**: reward abilities are deduplicated by normalized,
+  case-insensitive `DisplayName` plus the complete `IAbilityData` gameplay signature.
+- **Distinct definitions preserved**: same-name abilities with different behavior are
+  allowed; null or blank display names are rejected safely.
+
+### Scope
+- Incompatible-ability rules remain deferred because the domain has no compatibility
+  metadata yet.
+
+### Verification
+- Focused RunState/ability tests: **38/38** passed.
+- Full suites: **198/198 EditMode** and **31/31 PlayMode** tests passed.
+- Unity Console: **0 errors and 0 warnings**; `EditorSettings` restored to baseline.
+
 ## v0.7.5 — Reward Previews (2026-07-24)
 
 ### Added

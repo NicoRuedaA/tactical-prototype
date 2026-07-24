@@ -270,6 +270,46 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void AddAbility_RejectsDuplicateDisplayNameCaseInsensitive()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces, MakeTwoStepGraph());
+
+            state.AddAbility("p1", new TestAbilityStub { DisplayName = "Fireball" });
+            state.AddAbility("p1", new TestAbilityStub { DisplayName = "fireBALL" });
+
+            Assert.AreEqual(1, state.Pieces[0].Abilities.Count);
+            Assert.AreEqual("Fireball", state.Pieces[0].Abilities[0].DisplayName);
+        }
+
+        [Test]
+        public void AddAbility_AllowsSameDisplayNameWithDifferentDefinition()
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces, MakeTwoStepGraph());
+
+            state.AddAbility("p1", new TestAbilityStub { DisplayName = "Fireball", ActiveRange = 1 });
+            state.AddAbility("p1", new TestAbilityStub { DisplayName = "fireBALL", ActiveRange = 2 });
+
+            Assert.AreEqual(2, state.Pieces[0].Abilities.Count);
+            Assert.AreEqual(1, state.Pieces[0].Abilities[0].ActiveRange);
+            Assert.AreEqual(2, state.Pieces[0].Abilities[1].ActiveRange);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("   ")]
+        public void AddAbility_IgnoresNullOrBlankDisplayName(string displayName)
+        {
+            var pieces = new[] { MakePiece("p1") };
+            var state = new RunState(pieces, MakeTwoStepGraph());
+
+            state.AddAbility("p1", new TestAbilityStub { DisplayName = displayName });
+
+            Assert.IsEmpty(state.Pieces[0].Abilities);
+        }
+
+        [Test]
         public void AddAbility_NullIsNoOp()
         {
             var pieces = new[] { MakePiece("p1") };

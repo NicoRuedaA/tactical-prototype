@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -113,10 +114,46 @@ namespace Game.Core
 
         // --- Run progression (ability / stat boost management) ---
 
+        /// <summary>
+        /// Adds a named ability unless the piece already has an equivalent ability
+        /// definition with the same normalized display name (case-insensitive) and
+        /// gameplay signature. Abilities without a usable display name are ignored
+        /// because they cannot be identified safely for deduplication.
+        /// </summary>
         public void AddAbility(IAbilityData ability)
         {
             if (ability == null) return;
+
+            string displayName = ability.DisplayName;
+            if (string.IsNullOrWhiteSpace(displayName)) return;
+
+            displayName = displayName.Trim();
+            bool alreadyKnown = _abilities.Any(existing =>
+                existing != null
+                && !string.IsNullOrWhiteSpace(existing.DisplayName)
+                && HasEquivalentAbilityDefinition(existing, ability, displayName));
+
+            if (alreadyKnown) return;
             _abilities.Add(ability);
+        }
+
+        private static bool HasEquivalentAbilityDefinition(
+            IAbilityData existing,
+            IAbilityData candidate,
+            string candidateDisplayName)
+        {
+            return string.Equals(existing.DisplayName.Trim(), candidateDisplayName, StringComparison.OrdinalIgnoreCase)
+                && existing.AbilityType == candidate.AbilityType
+                && existing.ManaCost == candidate.ManaCost
+                && existing.ActiveRange == candidate.ActiveRange
+                && existing.Trigger == candidate.Trigger
+                && existing.EffectType == candidate.EffectType
+                && existing.EffectValue == candidate.EffectValue
+                && existing.StatToModify == candidate.StatToModify
+                && existing.AreaRadius == candidate.AreaRadius
+                && existing.AffectsTeam == candidate.AffectsTeam
+                && existing.DurationType == candidate.DurationType
+                && existing.DurationTurns == candidate.DurationTurns;
         }
 
         public void AddBonusDamage(int amount)      => _bonusDamage += amount;

@@ -182,7 +182,9 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 - [x] Show current values and the exact post-reward result before confirmation.
 - [x] Remove text parsing for Max HP and use explicit reward effects.
 - Use `EffectiveMaxHp` consistently in rules and UI.
-- Prevent duplicate or incompatible abilities.
+- [x] Prevent exact duplicate abilities with normalized, case-insensitive display-name
+  and complete gameplay-signature matching; incompatible-ability rules remain deferred
+  pending compatibility metadata.
 - Define mana recovery and reward pools for normal, elite, and boss progression.
 - Make rewards deterministic when using the same run seed.
 
@@ -218,6 +220,20 @@ Focused `RewardScreenTests` pass **7/7**; `git diff --check` is clean, and Unity
 compilation is clean with no C# errors. The previous slice's retained full-suite
 evidence remains **190/190 EditMode** and **31/31 PlayMode**; those suites were not
 rerun for this bounded preview slice.
+
+### Ability reward deduplication slice ✅ Verified (2026-07-24)
+
+Exact duplicate abilities are rejected using a normalized, case-insensitive
+`DisplayName` plus the complete `IAbilityData` gameplay signature. Abilities that
+share a name but differ in behavior remain distinct, while null or blank display
+names are rejected safely. Incompatible-ability rules are not implemented because
+the domain currently has no compatibility metadata; that decision remains follow-up
+work.
+
+Focused RunState/ability tests pass **38/38**; the full suites pass **198/198
+EditMode** and **31/31 PlayMode** tests. The Unity Console reports **0 errors and
+0 warnings**, and `EditorSettings` was restored to its baseline Enter Play Mode
+options after verification.
 
 ### Exit criteria
 
