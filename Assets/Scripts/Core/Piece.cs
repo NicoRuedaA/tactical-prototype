@@ -131,13 +131,21 @@ namespace Game.Core
             if (string.IsNullOrWhiteSpace(displayName)) return;
 
             displayName = displayName.Trim();
-            bool alreadyKnown = _abilities.Any(existing =>
+            if (HasEquivalentAbility(ability)) return;
+            _abilities.Add(ability);
+        }
+
+        /// <summary>Whether this piece already knows the same canonical ability definition.</summary>
+        public bool HasEquivalentAbility(IAbilityData ability)
+        {
+            if (ability == null || string.IsNullOrWhiteSpace(ability.DisplayName))
+                return false;
+
+            string displayName = ability.DisplayName.Trim();
+            return _abilities.Any(existing =>
                 existing != null
                 && !string.IsNullOrWhiteSpace(existing.DisplayName)
                 && HasEquivalentAbilityDefinition(existing, ability, displayName));
-
-            if (alreadyKnown) return;
-            _abilities.Add(ability);
         }
 
         private static bool HasEquivalentAbilityDefinition(

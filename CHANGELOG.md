@@ -1,5 +1,104 @@
 # Changelog
 
+## v0.7.14 — Phase 3 Exit Evidence (2026-07-24)
+
+### Changed
+- **Core reward outcomes**: `RunState.ApplyReward` now owns deterministic
+  option-to-recipient application for damage, attack range, move range, max HP
+  plus current HP, and new abilities; `RewardScreen` delegates to this contract.
+- **Recipient confirmation clarity**: reward cards keep their exact before→after
+  previews while the title visibly restates the selected recipient's name.
+
+### Evidence
+- Behavior-first Core coverage proves every outcome, selected-recipient isolation,
+  ability application, identical-input final snapshots, and meaningfully different
+  deterministic two-run build histories from different seeds and choices.
+- Focused suites: **71/71 EditMode** and **5/5 RunLoop PlayMode** tests passed.
+- Full suites: **230/230 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validation passed; `git diff --check` is clean.
+
+### Scope
+- Phase 3 exit criteria are closed. Thorns content correctness remains separate
+  Phase 4 work and is unchanged.
+
+## v0.7.13 — Production Ability Exclusions (2026-07-24)
+
+### Added
+- **Observable normal-tier ability choices**: Power Strike, Mend, and Regeneration
+  now have authored reward definitions alongside Fireball in the normal pool.
+- **Reciprocal specialization rules**: Power Strike excludes Fireball and Fireball
+  excludes Power Strike; Mend excludes Regeneration and Regeneration excludes Mend.
+  Existing canonical full ability identity drives recipient filtering.
+
+### Scope
+- Elite and boss pools remain deterministic stat-specialization tiers.
+- Thorns and War Aura have no exclusion metadata because Thorns targeting is not yet
+  verified and that pairing was not approved.
+
+### Verification
+- Focused `RewardScreenTests`: **25/25** passed against real production assets.
+- Full suites: **221/221 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validation passed; `git diff --check` is clean.
+
+## v0.7.12 — Recipient-Compatible Rewards (2026-07-24)
+
+### Changed
+- **Recipient-first rewards**: the Reward scene now presents alive units before
+  generating seeded authored offers for the selected recipient; choosing a card
+  applies it directly to that unit and continues through the existing scene flow.
+- **Deterministic compatibility**: incompatible authored ability definitions are
+  filtered with the canonical gameplay signature, then compatible definitions fill
+  available slots without duplicate picks or replacement. Exhausted pools may show
+  fewer cards or advance without a reward when none remain, while null or empty
+  authored pools retain the deterministic fallback.
+- **Recipient-specific previews**: reward cards show exact current-to-result values
+  for the selected unit without mutating run state before selection.
+
+### Scope
+- Production reward assets intentionally define no incompatibility groups; synthetic
+  definitions and recipients prove the mechanic without establishing balance policy.
+
+### Verification
+- Focused suites: **19/19 RewardScreen EditMode** and **5/5 RunLoop PlayMode** tests passed.
+- Full suites: **215/215 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validation passed; `git diff --check` is clean.
+
+## v0.7.11 — Distinct Reward Tiers (2026-07-24)
+
+### Changed
+- **Observable tier identity**: normal offers remain modest, elite offers combine
+  stronger damage and vitality with movement, and boss offers combine the strongest
+  damage and vitality boosts with attack range.
+- **Conservative reward effects**: all tier distinctions use existing stat,
+  max-HP, and ability effects; selection plumbing and legacy fallback are unchanged.
+
+### Verification
+- Focused `RewardScreenTests`: **15/15** passed, including real authored pool
+  distinction and same-seed determinism.
+- Full suites: **211/211 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validation passed.
+
+## v0.7.10 — Authored Reward Pools (2026-07-24)
+
+### Added
+- **Encounter-tier reward pools**: separate authored normal, elite, and boss
+  `RewardPoolData` assets are selected from the retained encounter type.
+- **Deterministic pool sampling**: seeded selection does not repeat indices; null
+  or empty authored pools use the deterministic legacy inline fallback.
+
+### Changed
+- **Assembly ownership**: Unity-independent reward domain models now live in
+  `Game.Core`, preserving the existing Core/Data/Unity assembly boundaries.
+
+### Scope
+- Starter normal, elite, and boss pools intentionally share conservative reward
+  definitions while the authored integration is validated.
+
+### Verification
+- Focused `RewardScreenTests`: **14/14** passed.
+- Full suites: **210/210 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline validator passed with **0 failures, 0 inconclusive, and 0 skipped**.
+
 ## v0.7.9 — Pass-Turn Mana Recovery (2026-07-24)
 
 ### Added

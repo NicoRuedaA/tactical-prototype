@@ -254,6 +254,98 @@ namespace Game.Core.Tests
             Assert.IsEmpty(state.GetAlivePlayerPieces());
         }
 
+        // ── ApplyReward ───────────────────────────────────────────────────────
+
+        [TestCase(StatType.Damage, 4, 1, 1)]
+        [TestCase(StatType.AttackRange, 1, 4, 1)]
+        [TestCase(StatType.MoveRange, 1, 1, 4)]
+        public void ApplyReward_AppliesEveryStatOutcome(
+            StatType stat,
+            int expectedDamage,
+            int expectedAttackRange,
+            int expectedMoveRange)
+        {
+            var piece = MakePiece("p1");
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
+
+            state.ApplyReward("p1", new RewardOption("Boost", RewardEffectKind.StatBoost, stat, 3));
+
+            Assert.That(piece.EffectiveDamage, Is.EqualTo(expectedDamage));
+            Assert.That(piece.EffectiveAttackRange, Is.EqualTo(expectedAttackRange));
+            Assert.That(piece.EffectiveMoveRange, Is.EqualTo(expectedMoveRange));
+        }
+
+        [Test]
+        public void ApplyReward_MaxHpBoostIncreasesMaxHpAndCurrentHp()
+        {
+            var piece = new Piece("p1", Team.Player, 10, 2, 1, 2, 5);
+            piece.TakeDamage(4);
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
+
+            state.ApplyReward("p1", new RewardOption("Vitality", RewardEffectKind.MaxHpBoost, null, 3));
+
+            Assert.That(piece.EffectiveMaxHp, Is.EqualTo(13));
+            Assert.That(piece.Hp, Is.EqualTo(9));
+        }
+
+        [Test]
+        public void ApplyReward_NewAbilityAddsAbilityToRecipient()
+        {
+            var piece = MakePiece("p1");
+            var ability = new TestAbilityStub { DisplayName = "Fireball" };
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
+
+            state.ApplyReward("p1", new RewardOption("Learn Fireball", RewardEffectKind.NewAbility, null, 0, ability));
+
+            Assert.That(piece.Abilities, Has.Count.EqualTo(1));
+            Assert.That(piece.Abilities[0], Is.SameAs(ability));
+        }
+
+        [Test]
+        public void ApplyReward_MutatesOnlySelectedRecipient()
+        {
+            var selected = MakePiece("selected");
+            var untouched = MakePiece("untouched");
+            var state = new RunState(new[] { selected, untouched }, MakeTwoStepGraph());
+
+            state.ApplyReward("selected", new RewardOption("Power", RewardEffectKind.StatBoost, StatType.Damage, 2));
+
+            Assert.That(selected.EffectiveDamage, Is.EqualTo(3));
+            Assert.That(CaptureBuild(untouched), Is.EqualTo("untouched|5/5|1|1|1|"));
+        }
+
+        [Test]
+        public void ApplyReward_IncompleteOptionRemainsNoOpEvenForMissingRecipient()
+        {
+            var piece = MakePiece("p1");
+            var state = new RunState(new[] { piece }, MakeTwoStepGraph());
+
+            Assert.That(
+                () => state.ApplyReward("missing", new RewardOption("Invalid", RewardEffectKind.StatBoost, null, 9)),
+                Throws.Nothing);
+            Assert.That(CaptureBuild(piece), Is.EqualTo("p1|5/5|1|1|1|"));
+        }
+
+        [Test]
+        public void ApplyReward_IdenticalInputsProduceIdenticalFinalSnapshots()
+        {
+            string first = BuildRewardHistorySnapshot(1729, new[] { 0, 2, 4 });
+            string second = BuildRewardHistorySnapshot(1729, new[] { 0, 2, 4 });
+
+            Assert.That(first, Is.EqualTo(second));
+        }
+
+        [Test]
+        public void ApplyReward_DifferentSeedsAndChoicesProduceMeaningfullyDifferentBuilds()
+        {
+            string offenseBuild = BuildRewardHistorySnapshot(101, new[] { 0, 4 });
+            string mobilityBuild = BuildRewardHistorySnapshot(202, new[] { 1, 2, 3 });
+
+            Assert.That(offenseBuild, Is.Not.EqualTo(mobilityBuild));
+            Assert.That(offenseBuild, Does.Contain("Fireball"));
+            Assert.That(mobilityBuild, Does.Not.Contain("Fireball"));
+        }
+
         // ── AddAbility ────────────────────────────────────────────────────────
 
         [Test]
@@ -437,6 +529,34 @@ namespace Game.Core.Tests
             public AffectsTeam AffectsTeam { get; set; } = AffectsTeam.Enemies;
             public DurationType DurationType { get; set; } = DurationType.FixedTurns;
             public int DurationTurns { get; set; } = 1;
+        }
+
+        private static string BuildRewardHistorySnapshot(int seed, IReadOnlyList<int> choices)
+        {
+            var pieces = new[] { MakePiece("alpha"), MakePiece("bravo") };
+            var state = new RunState(pieces, MakeTwoStepGraph());
+            var ability = new TestAbilityStub { DisplayName = "Fireball" };
+            var options = new[]
+            {
+                new RewardOption("Damage", RewardEffectKind.StatBoost, StatType.Damage, 2),
+                new RewardOption("Attack range", RewardEffectKind.StatBoost, StatType.AttackRange, 1),
+                new RewardOption("Move range", RewardEffectKind.StatBoost, StatType.MoveRange, 1),
+                new RewardOption("Vitality", RewardEffectKind.MaxHpBoost, null, 3),
+                new RewardOption("Fireball", RewardEffectKind.NewAbility, null, 0, ability),
+            };
+            var rng = new DeterministicRandom(seed);
+
+            foreach (int choice in choices)
+                state.ApplyReward(pieces[rng.Next(pieces.Length)].Id, options[choice]);
+
+            return string.Join(";", state.Pieces.Select(CaptureBuild));
+        }
+
+        private static string CaptureBuild(Piece piece)
+        {
+            return $"{piece.Id}|{piece.Hp}/{piece.EffectiveMaxHp}|{piece.EffectiveDamage}|" +
+                   $"{piece.EffectiveAttackRange}|{piece.EffectiveMoveRange}|" +
+                   string.Join(",", piece.Abilities.Select(ability => ability.DisplayName));
         }
     }
 }

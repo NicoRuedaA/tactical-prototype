@@ -5,72 +5,8 @@ using UnityEngine.UI;
 using Game.Core;
 
 /// <summary>
-/// Reward types available for post-combat selection.
-/// </summary>
-public enum RewardType { StatBoost, NewAbility }
-
-/// <summary>
-/// Explicit gameplay effect carried by a reward option.
-/// </summary>
-public enum RewardEffectKind { StatBoost, MaxHpBoost, NewAbility }
-
-/// <summary>
-/// Describes a single reward option the player can pick.
-/// </summary>
-public readonly struct RewardOption
-{
-    public readonly string Description;
-    public readonly RewardType Type;
-    public readonly RewardEffectKind Effect;
-    public readonly StatType? Stat;
-    public readonly int Amount;
-    public readonly IAbilityData Ability;
-
-    public RewardOption(string description, RewardType type, StatType? stat, int amount, IAbilityData ability = null)
-        : this(description, ToEffectKind(type), type, stat, amount, ability)
-    {
-    }
-
-    public RewardOption(string description, RewardEffectKind effect, StatType? stat, int amount, IAbilityData ability = null)
-        : this(description, effect, ToRewardType(effect), stat, amount, ability)
-    {
-    }
-
-    private RewardOption(
-        string description,
-        RewardEffectKind effect,
-        RewardType type,
-        StatType? stat,
-        int amount,
-        IAbilityData ability)
-    {
-        Description = description;
-        Type = type;
-        Effect = effect;
-        Stat = stat;
-        Amount = amount;
-        Ability = ability;
-    }
-
-    private static RewardEffectKind ToEffectKind(RewardType type)
-    {
-        return type == RewardType.NewAbility
-            ? RewardEffectKind.NewAbility
-            : RewardEffectKind.StatBoost;
-    }
-
-    private static RewardType ToRewardType(RewardEffectKind effect)
-    {
-        return effect == RewardEffectKind.NewAbility
-            ? RewardType.NewAbility
-            : RewardType.StatBoost;
-    }
-}
-
-/// <summary>
-/// Displays 3 random reward cards after a combat victory.
-/// Player picks one, then selects an alive recipient before the reward is
-/// applied and RunManager is signaled to continue.
+/// Shows alive recipients after combat, then generates compatible reward cards
+/// for the selected recipient and applies the chosen reward.
 /// </summary>
 public class RewardScreen : MonoBehaviour
 {
@@ -85,10 +21,17 @@ public class RewardScreen : MonoBehaviour
 
     public Text TitleText;
 
+    [Header("Reward Pools")]
+    public RewardPoolData NormalRewardPool;
+    public RewardPoolData EliteRewardPool;
+    public RewardPoolData BossRewardPool;
+
     private RewardOption[] _currentOptions;
     private RunState _runState;
+    private RewardPoolData _rewardPool;
+    private int _rewardOptionsSeed;
     private int _rewardRecipientSeed;
-    private RewardOption _pendingOption;
+    private Piece _selectedRecipient;
     private bool _isSelectingRecipient;
     private GameObject _recipientContainer;
     private readonly List<Button> _recipientButtons = new List<Button>();
@@ -111,6 +54,7 @@ public class RewardScreen : MonoBehaviour
     {
         ClearRecipientSelectionUi();
         _isSelectingRecipient = false;
+        _selectedRecipient = null;
         var mgr = RunManager.Instance;
         if (mgr == null || mgr.CurrentRun == null)
         {
@@ -119,9 +63,19 @@ public class RewardScreen : MonoBehaviour
         }
 
         _runState = mgr.CurrentRun;
-        _currentOptions = GenerateRewardOptions(mgr.GetStreamSeed(RunRandomStream.RewardOptions));
+        _rewardPool = SelectRewardPool(
+            mgr.CurrentNodeType,
+            NormalRewardPool,
+            EliteRewardPool,
+            BossRewardPool);
+        _rewardOptionsSeed = mgr.GetStreamSeed(RunRandomStream.RewardOptions);
         _rewardRecipientSeed = mgr.GetStreamSeed(RunRandomStream.RewardRecipient);
-        DisplayOptions();
+        _currentOptions = System.Array.Empty<RewardOption>();
+
+        if (GetDeterministicAliveRecipients(_runState).Count > 0 && BuildRecipientSelectionUi())
+            return;
+
+        SelectRecipientAndDisplayOptions(PickRandomAlivePiece());
     }
 
     private void OnDisable()
@@ -133,6 +87,41 @@ public class RewardScreen : MonoBehaviour
     // ── Reward generation ─────────────────────────────────────────────────────
 
     public static RewardOption[] GenerateRewardOptions(int streamSeed)
+    {
+        return GenerateFallbackOptions(streamSeed);
+    }
+
+    public static RewardOption[] GenerateRewardOptions(int streamSeed, RewardPoolData rewardPool)
+    {
+        return GenerateRewardOptions(streamSeed, rewardPool, null);
+    }
+
+    public static RewardOption[] GenerateRewardOptions(int streamSeed, RewardPoolData rewardPool, Piece recipient)
+    {
+        if (rewardPool != null && rewardPool.HasAuthoredDefinitions)
+            return rewardPool.PickOptions(streamSeed, recipient);
+
+        return GenerateFallbackOptions(streamSeed);
+    }
+
+    public static RewardPoolData SelectRewardPool(
+        MapNodeType nodeType,
+        RewardPoolData normalPool,
+        RewardPoolData elitePool,
+        RewardPoolData bossPool)
+    {
+        switch (nodeType)
+        {
+            case MapNodeType.Elite:
+                return elitePool;
+            case MapNodeType.Boss:
+                return bossPool;
+            default:
+                return normalPool;
+        }
+    }
+
+    private static RewardOption[] GenerateFallbackOptions(int streamSeed)
     {
         var rng = new DeterministicRandom(streamSeed);
         int optionCount = System.Math.Min(3, RewardPool.Length);
@@ -146,7 +135,7 @@ public class RewardScreen : MonoBehaviour
     {
         SetCardUiVisible(true);
         if (TitleText != null)
-            TitleText.text = "CHOOSE A REWARD";
+            TitleText.text = $"CHOOSE A REWARD FOR {_selectedRecipient.Name}";
 
         var cardTexts = new[] { CardText0, CardText1, CardText2 };
         var cardButtons = new[] { CardButton0, CardButton1, CardButton2 };
@@ -159,7 +148,7 @@ public class RewardScreen : MonoBehaviour
                 string icon = GetIcon(opt);
 
                 if (cardTexts[i] != null)
-                    cardTexts[i].text = $"{icon} {opt.Description}";
+                    cardTexts[i].text = $"{icon} {FormatRewardPreview(_selectedRecipient, opt)}";
 
                 if (cardButtons[i] != null)
                 {
@@ -201,14 +190,13 @@ public class RewardScreen : MonoBehaviour
         if (_currentOptions == null || cardIndex < 0 || cardIndex >= _currentOptions.Length)
             return;
 
-        _pendingOption = _currentOptions[cardIndex];
-
-        // Prefer an explicit recipient choice. Legacy deterministic random selection
-        // remains available when no recipient UI can be created or no one is alive.
-        if (GetDeterministicAliveRecipients(_runState).Count > 0 && BuildRecipientSelectionUi())
+        if (_selectedRecipient == null || _selectedRecipient.IsDead)
             return;
 
-        ApplyLegacyRewardFallback(_pendingOption);
+        var option = _currentOptions[cardIndex];
+        ApplyReward(_selectedRecipient, option);
+        Debug.Log($"Reward applied: {option.Description} -> {_selectedRecipient.Name}");
+        RunManager.Instance?.OnRewardApplied();
     }
 
     private Piece PickRandomAlivePiece()
@@ -245,20 +233,6 @@ public class RewardScreen : MonoBehaviour
         if (runState == null)
             return new List<Piece>();
         return runState.GetAlivePlayerPieces().ToList();
-    }
-
-    private void ApplyLegacyRewardFallback(RewardOption option)
-    {
-        var piece = PickRandomAlivePiece();
-        if (piece == null)
-        {
-            Debug.LogError("RewardScreen: No pieces available to apply reward!");
-            return;
-        }
-
-        ApplyReward(piece, option);
-        Debug.Log($"Reward applied: {option.Description} -> {piece.Name}");
-        RunManager.Instance?.OnRewardApplied();
     }
 
     private bool BuildRecipientSelectionUi()
@@ -334,7 +308,7 @@ public class RewardScreen : MonoBehaviour
         label.fontSize = 20;
         label.alignment = TextAnchor.MiddleCenter;
         label.color = Color.white;
-        label.text = FormatRecipientLabel(piece, _pendingOption);
+        label.text = FormatRecipientLabel(piece);
 
         string capturedId = piece.Id;
         button.onClick.AddListener(() => OnRecipientClicked(capturedId));
@@ -390,6 +364,11 @@ public class RewardScreen : MonoBehaviour
         return $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp} — {preview}";
     }
 
+    public static string FormatRecipientLabel(Piece piece)
+    {
+        return piece == null ? string.Empty : $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp}";
+    }
+
     private static int GetEffectiveStat(Piece piece, StatType stat)
     {
         switch (stat)
@@ -415,13 +394,29 @@ public class RewardScreen : MonoBehaviour
         if (piece == null)
             return;
 
-        var option = _pendingOption;
         ClearRecipientSelectionUi();
         _isSelectingRecipient = false;
-        SetCardUiVisible(true);
-        ApplyReward(piece, option);
-        Debug.Log($"Reward applied: {option.Description} -> {piece.Name}");
-        RunManager.Instance?.OnRewardApplied();
+        SelectRecipientAndDisplayOptions(piece);
+    }
+
+    private void SelectRecipientAndDisplayOptions(Piece piece)
+    {
+        if (piece == null)
+        {
+            Debug.LogError("RewardScreen: No pieces available to receive a reward!");
+            return;
+        }
+
+        _selectedRecipient = piece;
+        _currentOptions = GenerateRewardOptions(_rewardOptionsSeed, _rewardPool, piece);
+        if (_currentOptions.Length == 0)
+        {
+            Debug.Log($"No compatible rewards available for {piece.Name}; continuing run.");
+            RunManager.Instance?.OnRewardApplied();
+            return;
+        }
+
+        DisplayOptions();
     }
 
     private void SetCardUiVisible(bool visible)
@@ -451,20 +446,7 @@ public class RewardScreen : MonoBehaviour
 
     private void ApplyReward(Piece piece, RewardOption option)
     {
-        switch (option.Effect)
-        {
-            case RewardEffectKind.MaxHpBoost:
-                _runState.ApplyMaxHpBoost(piece.Id, option.Amount);
-                break;
-
-            case RewardEffectKind.StatBoost when option.Stat.HasValue:
-                _runState.ApplyStatBoost(piece.Id, option.Stat.Value, option.Amount);
-                break;
-
-            case RewardEffectKind.NewAbility when option.Ability != null:
-                _runState.AddAbility(piece.Id, option.Ability);
-                break;
-        }
+        _runState.ApplyReward(piece.Id, option);
     }
 }
 

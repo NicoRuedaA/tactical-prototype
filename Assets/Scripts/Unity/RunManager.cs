@@ -73,6 +73,9 @@ public sealed class RunManager : MonoBehaviour
     /// <summary>Number of completed combat encounters in the active run.</summary>
     public int CurrentCombatIndex => _currentCombatIndex;
 
+    /// <summary>Type of the encounter currently advancing through the run loop.</summary>
+    public MapNodeType CurrentNodeType => _currentNodeType;
+
     /// <summary>Current phase of the run state machine.</summary>
     public RunPhase CurrentPhase { get; private set; } = RunPhase.None;
 

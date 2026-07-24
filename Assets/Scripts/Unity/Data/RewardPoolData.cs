@@ -13,6 +13,9 @@ public sealed class RewardPoolData : ScriptableObject
 
     public RewardDefinition[] rewards = Array.Empty<RewardDefinition>();
 
+    public bool HasAuthoredDefinitions =>
+        rewards != null && rewards.Any(definition => definition != null);
+
     public IReadOnlyList<RewardDefinition> GetCompatibleDefinitions(Piece recipient = null)
     {
         return (rewards ?? Array.Empty<RewardDefinition>())

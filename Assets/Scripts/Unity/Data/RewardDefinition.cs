@@ -30,15 +30,10 @@ public sealed class RewardDefinition : ScriptableObject
         if (recipient == null || incompatibleAbilities == null || incompatibleAbilities.Length == 0)
             return true;
 
-        foreach (var existing in recipient.Abilities)
+        foreach (var incompatible in incompatibleAbilities)
         {
-            if (existing == null)
-                continue;
-            foreach (var incompatible in incompatibleAbilities)
-            {
-                if (incompatible != null && string.Equals(existing.DisplayName, incompatible.displayName, StringComparison.OrdinalIgnoreCase))
-                    return false;
-            }
+            if (incompatible != null && recipient.HasEquivalentAbility(incompatible))
+                return false;
         }
 
         return true;

@@ -123,22 +123,31 @@ namespace Game.PlayMode.Tests
             int recipientSeed = manager.GetStreamSeed(RunRandomStream.RewardRecipient);
             Assert.That(recipientSeed, Is.Not.EqualTo(optionsSeed));
 
-            RewardOption[] expectedOptions = RewardScreen.GenerateRewardOptions(optionsSeed);
-            RewardOption[] wiredOptions = GetPrivateField<RewardOption[]>(rewardScreen, "_currentOptions");
-            Assert.That(wiredOptions, Is.Not.Null);
-            Assert.That(
-                wiredOptions.Select(option => option.Description),
-                Is.EqualTo(expectedOptions.Select(option => option.Description)));
-            Assert.That(rewardScreen.CardText0.text, Does.Contain(expectedOptions[0].Description));
+            RewardPoolData expectedPool = RewardScreen.SelectRewardPool(
+                manager.CurrentNodeType,
+                rewardScreen.NormalRewardPool,
+                rewardScreen.EliteRewardPool,
+                rewardScreen.BossRewardPool);
+            Assert.That(rewardScreen.TitleText.text, Is.EqualTo("CHOOSE A UNIT"));
+            Assert.That(rewardScreen.CardButton0.gameObject.activeInHierarchy, Is.False);
             Assert.That(GetPrivateField<int>(rewardScreen, "_rewardRecipientSeed"), Is.EqualTo(recipientSeed));
 
             Piece expectedRecipient = RewardScreen.SelectRewardRecipient(originalRun, recipientSeed);
             Assert.That(expectedRecipient, Is.Not.Null);
             var before = originalRun.Pieces.ToDictionary(piece => piece, PieceProgress.Capture);
 
-            SubmitButton(rewardScreen.CardButton0);
-            yield return null;
             SubmitRewardRecipient(rewardScreen, expectedRecipient);
+            yield return null;
+
+            RewardOption[] expectedOptions = RewardScreen.GenerateRewardOptions(optionsSeed, expectedPool, expectedRecipient);
+            RewardOption[] wiredOptions = GetPrivateField<RewardOption[]>(rewardScreen, "_currentOptions");
+            Assert.That(wiredOptions.Select(option => option.Description),
+                Is.EqualTo(expectedOptions.Select(option => option.Description)));
+            Assert.That(rewardScreen.TitleText.text, Is.EqualTo($"CHOOSE A REWARD FOR {expectedRecipient.Name}"));
+            Assert.That(rewardScreen.CardText0.text,
+                Does.Contain(RewardScreen.FormatRewardPreview(expectedRecipient, expectedOptions[0])));
+
+            SubmitButton(rewardScreen.CardButton0);
             yield return WaitForScene("Map", SceneTimeoutSeconds);
 
             Assert.That(RunManager.Instance, Is.SameAs(manager));
@@ -258,9 +267,9 @@ namespace Game.PlayMode.Tests
 
                 var rewardScreen = Object.FindObjectOfType<RewardScreen>();
                 Assert.That(rewardScreen, Is.Not.Null);
-                SubmitButton(rewardScreen.CardButton0);
-                yield return null;
                 SubmitFirstRewardRecipient(rewardScreen);
+                yield return null;
+                SubmitButton(rewardScreen.CardButton0);
 
                 if (nodeType == MapNodeType.Boss)
                     yield return WaitForScene("GameOver", SceneTimeoutSeconds);

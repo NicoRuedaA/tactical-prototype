@@ -81,6 +81,26 @@ namespace Game.Core
         public IReadOnlyList<string> GetAvailableNodes() => Graph.GetAvailableNodes();
 
         /// <summary>
+        /// Applies one reward option to one piece in the run.
+        /// Invalid or incomplete options are ignored, matching the reward UI's safe behavior.
+        /// </summary>
+        public void ApplyReward(string pieceId, RewardOption option)
+        {
+            switch (option.Effect)
+            {
+                case RewardEffectKind.MaxHpBoost:
+                    ApplyMaxHpBoost(pieceId, option.Amount);
+                    break;
+                case RewardEffectKind.StatBoost when option.Stat.HasValue:
+                    ApplyStatBoost(pieceId, option.Stat.Value, option.Amount);
+                    break;
+                case RewardEffectKind.NewAbility when option.Ability != null:
+                    AddAbility(pieceId, option.Ability);
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Adds an ability to the specified piece. Null abilities are silently ignored.
         /// </summary>
         /// <exception cref="ArgumentException">Thrown when pieceId is not found.</exception>

@@ -171,21 +171,20 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 - The player can compare route risk and reward.
 - Combat return preserves the correct run and map state.
 
-## Phase 3 — Meaningful progression
+## Phase 3 — Meaningful progression ✅ Complete
 
 **Outcome:** rewards create distinct, intentional character builds.
 
 ### Deliverables
 
-- Define rewards as data assets rather than text-driven behavior.
+- [x] Define rewards as data assets rather than text-driven behavior.
 - [x] Let the player choose which unit receives a reward.
 - [x] Show current values and the exact post-reward result before confirmation.
 - [x] Remove text parsing for Max HP and use explicit reward effects.
 - [x] Use `EffectiveMaxHp` consistently in rules and UI.
-- [x] Prevent exact duplicate abilities with normalized, case-insensitive display-name
-  and complete gameplay-signature matching; incompatible-ability rules remain deferred
-  pending compatibility metadata.
-- Define mana recovery and reward pools for normal, elite, and boss progression.
+- [x] Prevent exact duplicate abilities and filter incompatible ability reward groups
+  with normalized, case-insensitive display-name and complete gameplay-signature matching.
+- [x] Define mana recovery and reward pools for normal, elite, and boss progression.
 - [x] Make rewards deterministic when using the same run seed.
 
 ### Player-selected reward recipients slice ✅ Verified (2026-07-24)
@@ -273,11 +272,73 @@ and **31/31 PlayMode** tests. The Unity Console reports **0 errors and 0 warning
 and `EditorSettings.m_EnterPlayModeOptions` was restored to its baseline value of
 `0` after verification.
 
+### Authored reward pools slice ✅ Verified (2026-07-24)
+
+The Reward scene now uses separate authored normal, elite, and boss
+`RewardPoolData` assets selected from the retained encounter type. Seeded sampling
+remains deterministic and does not repeat indices; null or empty authored pools use
+the deterministic legacy inline fallback. Unity-independent reward domain models now
+live in `Game.Core`, preserving the existing assembly boundaries.
+
+The authored offers now communicate tier identity using only supported effects:
+normal rewards remain modest, elite rewards provide stronger offense/survivability
+plus movement, and boss rewards provide the strongest stat boosts plus attack range.
+Focused `RewardScreenTests` pass **15/15**; the full suites pass **211/211 EditMode**
+and **31/31 PlayMode** tests. The project baseline validator passed.
+
+### Recipient-compatible rewards slice ✅ Verified (2026-07-24)
+
+The Reward scene now starts with alive recipients in deterministic roster order.
+Selecting one generates that recipient's seeded authored offers; incompatible ability
+definitions are excluded using the same canonical gameplay signature as duplicate
+prevention. Compatible definitions fill the authored slots without replacement and
+may produce fewer cards when exhausted; zero compatible definitions advance without
+granting a replacement reward. Null or empty authored pools retain the deterministic
+inline fallback. Reward cards preview the selected unit's exact result without
+mutation, and selecting one applies it directly before the existing Map or GameOver
+transition.
+
+Synthetic definitions and recipients prove exclusion, same-seed determinism, no
+replacement, exhaustion, recipient-specific previews, and scene progression.
+
+Focused suites pass **19/19 RewardScreen EditMode** and **5/5 RunLoop PlayMode** tests;
+the full suites pass **215/215 EditMode** and **31/31 PlayMode** tests. The project
+baseline validator passed, and `git diff --check` is clean.
+
+### Production ability exclusions slice ✅ Verified (2026-07-24)
+
+The normal reward pool now offers Power Strike, Fireball, Mend, and Regeneration as
+observable build choices. Power Strike and Fireball exclude each other reciprocally,
+as do Mend and Regeneration; filtering uses the existing canonical full ability
+identity. Elite and boss pools remain deterministic stat-specialization tiers.
+
+Thorns and War Aura are intentionally untouched because Thorns targeting remains
+unverified. Real production-asset tests prove each approved reciprocal direction,
+stable compatible and unaffected offers, and the exact absence of unapproved
+metadata. Focused `RewardScreenTests` pass **25/25**; the full suites pass **221/221
+EditMode** and **31/31 PlayMode** tests. The project baseline validator passed, and
+`git diff --check` is clean.
+
 ### Exit criteria
 
-- Two runs can produce meaningfully different builds.
-- Every reward states what changes and who receives it.
-- Reward outcomes have deterministic Core tests.
+- [x] Two runs can produce meaningfully different builds.
+- [x] Every reward states what changes and who receives it.
+- [x] Reward outcomes have deterministic Core tests.
+
+### Exit-evidence closure ✅ Verified (2026-07-24)
+
+`RunState.ApplyReward` now owns the Unity-independent option-to-outcome contract
+for damage, attack range, move range, max HP plus current HP, and new abilities.
+Behavior-first Core tests prove every outcome, selected-recipient isolation,
+ability application, identical-input final snapshots, and meaningfully different
+two-run build histories from deterministic seeds and choices.
+
+The recipient-first Reward scene delegates application to that Core contract and
+keeps the selected unit's name visible in the reward title while each card retains
+its exact before→after preview. Focused suites pass **71/71 EditMode** and **5/5
+RunLoop PlayMode** tests; full suites pass **230/230 EditMode** and **31/31
+PlayMode** tests. The project baseline validator passed, and `git diff --check` is
+clean. Thorns content correctness remains separate Phase 4 work and was not changed.
 
 ## Phase 4 — Vertical-slice content
 

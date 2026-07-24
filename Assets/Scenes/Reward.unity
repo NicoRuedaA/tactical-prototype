@@ -687,6 +687,9 @@ MonoBehaviour:
   CardText1: {fileID: 293915036}
   CardText2: {fileID: 643761191}
   TitleText: {fileID: 32164337}
+  NormalRewardPool: {fileID: 11400000, guid: 15b557ba23694fd3a1596ba312a58b75, type: 2}
+  EliteRewardPool: {fileID: 11400000, guid: 2c5e149c75d14ff69fac9b10abf0018f, type: 2}
+  BossRewardPool: {fileID: 11400000, guid: 3ae64bebf8a4433e8e8d72f9ddf34d83, type: 2}
 --- !u!1 &1088442940
 GameObject:
   m_ObjectHideFlags: 0

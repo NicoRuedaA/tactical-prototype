@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 541e4d9e679b97f5bab8d046f4ed9034, type: 3}
+  m_Name: RP_Elite
+  m_EditorClassIdentifier: 
+  optionsPerReward: 3
+  rewards:
+  - {fileID: 11400000, guid: 3f1cd7f6d8e04b31b40426c5211367ec, type: 2}
+  - {fileID: 11400000, guid: a2ae6cea2f4c4048a7e7c8e361255990, type: 2}
+  - {fileID: 11400000, guid: a858aea55f7048c3a3984286998a8062, type: 2}
