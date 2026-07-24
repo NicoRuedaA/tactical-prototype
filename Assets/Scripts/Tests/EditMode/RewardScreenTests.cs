@@ -1,10 +1,33 @@
 using System.Reflection;
+using System.Linq;
 using Game.Core;
 using NUnit.Framework;
 using UnityEngine;
 
 public sealed class RewardScreenTests
 {
+    [Test]
+    public void GetDeterministicAliveRecipients_PreservesRosterOrderAndFiltersDeadPieces()
+    {
+        var first = new Piece("first", Team.Player, 10, 2, 1, 2, 5, name: "Alpha");
+        var fallen = new Piece("fallen", Team.Player, 10, 2, 1, 2, 5, name: "Bravo");
+        fallen.TakeDamage(99);
+        var last = new Piece("last", Team.Player, 10, 2, 1, 2, 5, name: "Charlie");
+        var graph = new MapGraph(
+            new[]
+            {
+                new MapNode("start", MapNodeType.Combat, 0, 0),
+                new MapNode("boss", MapNodeType.Boss, 1, 0),
+            },
+            "start",
+            "boss");
+        var runState = new RunState(new[] { first, fallen, last }, graph);
+
+        var recipients = RewardScreen.GetDeterministicAliveRecipients(runState);
+
+        Assert.That(recipients.Select(piece => piece.Id), Is.EqualTo(new[] { "first", "last" }));
+    }
+
     [Test]
     public void GenerateRewardOptions_EncodesMaxHpAsExplicitEffect()
     {
@@ -61,6 +84,43 @@ public sealed class RewardScreenTests
 
             Assert.That(piece.EffectiveMaxHp, Is.EqualTo(12));
             Assert.That(piece.Hp, Is.EqualTo(12));
+        }
+        finally
+        {
+            Object.DestroyImmediate(screenObject);
+        }
+    }
+
+    [Test]
+    public void ApplyReward_AppliesExplicitSelectionOnlyToChosenPiece()
+    {
+        var selected = new Piece("selected", Team.Player, 10, 2, 1, 2, 5);
+        var untouched = new Piece("untouched", Team.Player, 10, 2, 1, 2, 5);
+        var graph = new MapGraph(
+            new[]
+            {
+                new MapNode("start", MapNodeType.Combat, 0, 0),
+                new MapNode("boss", MapNodeType.Boss, 1, 0),
+            },
+            "start",
+            "boss");
+        var runState = new RunState(new[] { selected, untouched }, graph);
+        var option = new RewardOption("Precision", RewardEffectKind.StatBoost, StatType.Damage, 2);
+        var screenObject = new GameObject("RewardScreen Selection Test");
+        screenObject.SetActive(false);
+        var screen = screenObject.AddComponent<RewardScreen>();
+
+        try
+        {
+            typeof(RewardScreen)
+                .GetField("_runState", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(screen, runState);
+            typeof(RewardScreen)
+                .GetMethod("ApplyReward", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(screen, new object[] { selected, option });
+
+            Assert.That(selected.EffectiveDamage, Is.EqualTo(4));
+            Assert.That(untouched.EffectiveDamage, Is.EqualTo(2));
         }
         finally
         {

@@ -178,7 +178,7 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 ### Deliverables
 
 - Define rewards as data assets rather than text-driven behavior.
-- Let the player choose which unit receives a reward.
+- [x] Let the player choose which unit receives a reward.
 - Show current values and the exact post-reward result before confirmation.
 - [x] Remove text parsing for Max HP and use explicit reward effects.
 - Use `EffectiveMaxHp` consistently in rules and UI.
@@ -186,15 +186,26 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 - Define mana recovery and reward pools for normal, elite, and boss progression.
 - Make rewards deterministic when using the same run seed.
 
+### Player-selected reward recipients slice ✅ Verified (2026-07-24)
+
+Reward selection is now a deterministic two-step interaction: the player first
+chooses a reward card, then chooses from runtime-generated buttons for each alive
+unit. Each recipient button shows the unit name, current HP, and effective max HP;
+the pending reward is applied only to the selected unit before the run advances.
+Controls are created under the existing Canvas and cleaned up on rebuild/disable.
+If the runtime UI cannot be created or no recipient is alive, the existing seeded
+legacy recipient fallback is used.
+
+Focused reward tests pass **4/4**; the full suites pass **190/190 EditMode** and
+**31/31 PlayMode** tests. The project baseline `CollectErrors` check is empty, and
+the Unity Console reports **0 errors and 0 warnings**.
+
 ### Explicit reward effects slice ✅ Verified (2026-07-24)
 
 `RewardOption` now carries an explicit `RewardEffectKind`, including `MaxHpBoost`;
 reward descriptions are UI-only and are no longer parsed to apply gameplay effects.
-Player-selected reward recipients remain the next Phase 3 deliverable.
-
-Focused reward tests pass **4/4**; the full suites pass **188/188 EditMode** and
-**31/31 PlayMode** tests. The project baseline `CollectErrors` check is empty, and
-the Unity Console reports **0 errors and 0 warnings**.
+The reward recipient flow is covered by the player-selected reward recipients
+slice above.
 
 ### Exit criteria
 

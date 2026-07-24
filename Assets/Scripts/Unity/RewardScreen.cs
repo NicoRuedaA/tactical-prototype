@@ -69,8 +69,8 @@ public readonly struct RewardOption
 
 /// <summary>
 /// Displays 3 random reward cards after a combat victory.
-/// Player picks one, which is applied to a random alive piece,
-/// then signals RunManager to continue.
+/// Player picks one, then selects an alive recipient before the reward is
+/// applied and RunManager is signaled to continue.
 /// </summary>
 public class RewardScreen : MonoBehaviour
 {
@@ -88,6 +88,10 @@ public class RewardScreen : MonoBehaviour
     private RewardOption[] _currentOptions;
     private RunState _runState;
     private int _rewardRecipientSeed;
+    private RewardOption _pendingOption;
+    private bool _isSelectingRecipient;
+    private GameObject _recipientContainer;
+    private readonly List<Button> _recipientButtons = new List<Button>();
 
     // ── Reward pool ───────────────────────────────────────────────────────────
 
@@ -105,6 +109,8 @@ public class RewardScreen : MonoBehaviour
 
     private void OnEnable()
     {
+        ClearRecipientSelectionUi();
+        _isSelectingRecipient = false;
         var mgr = RunManager.Instance;
         if (mgr == null || mgr.CurrentRun == null)
         {
@@ -116,6 +122,12 @@ public class RewardScreen : MonoBehaviour
         _currentOptions = GenerateRewardOptions(mgr.GetStreamSeed(RunRandomStream.RewardOptions));
         _rewardRecipientSeed = mgr.GetStreamSeed(RunRandomStream.RewardRecipient);
         DisplayOptions();
+    }
+
+    private void OnDisable()
+    {
+        ClearRecipientSelectionUi();
+        _isSelectingRecipient = false;
     }
 
     // ── Reward generation ─────────────────────────────────────────────────────
@@ -132,6 +144,7 @@ public class RewardScreen : MonoBehaviour
 
     private void DisplayOptions()
     {
+        SetCardUiVisible(true);
         if (TitleText != null)
             TitleText.text = "CHOOSE A REWARD";
 
@@ -188,22 +201,14 @@ public class RewardScreen : MonoBehaviour
         if (_currentOptions == null || cardIndex < 0 || cardIndex >= _currentOptions.Length)
             return;
 
-        var option = _currentOptions[cardIndex];
-        var piece = PickRandomAlivePiece();
+        _pendingOption = _currentOptions[cardIndex];
 
-        if (piece == null)
-        {
-            Debug.LogError("RewardScreen: No pieces available to apply reward!");
+        // Prefer an explicit recipient choice. Legacy deterministic random selection
+        // remains available when no recipient UI can be created or no one is alive.
+        if (GetDeterministicAliveRecipients(_runState).Count > 0 && BuildRecipientSelectionUi())
             return;
-        }
 
-        ApplyReward(piece, option);
-        Debug.Log($"Reward applied: {option.Description} -> {piece.Name}");
-
-        // Notify RunManager to continue
-        var mgr = RunManager.Instance;
-        if (mgr != null)
-            mgr.OnRewardApplied();
+        ApplyLegacyRewardFallback(_pendingOption);
     }
 
     private Piece PickRandomAlivePiece()
@@ -216,7 +221,7 @@ public class RewardScreen : MonoBehaviour
         if (runState == null)
             return null;
 
-        var alivePieces = runState.GetAlivePlayerPieces().ToList();
+        var alivePieces = GetDeterministicAliveRecipients(runState).ToList();
 
         if (alivePieces.Count == 0)
         {
@@ -229,6 +234,155 @@ public class RewardScreen : MonoBehaviour
 
         var rng = new DeterministicRandom(streamSeed);
         return alivePieces[rng.Next(alivePieces.Count)];
+    }
+
+    /// <summary>
+    /// Returns the alive player roster in RunState order. RunState preserves the
+    /// authored roster order, so this list is deterministic for a given run.
+    /// </summary>
+    public static IReadOnlyList<Piece> GetDeterministicAliveRecipients(RunState runState)
+    {
+        if (runState == null)
+            return new List<Piece>();
+        return runState.GetAlivePlayerPieces().ToList();
+    }
+
+    private void ApplyLegacyRewardFallback(RewardOption option)
+    {
+        var piece = PickRandomAlivePiece();
+        if (piece == null)
+        {
+            Debug.LogError("RewardScreen: No pieces available to apply reward!");
+            return;
+        }
+
+        ApplyReward(piece, option);
+        Debug.Log($"Reward applied: {option.Description} -> {piece.Name}");
+        RunManager.Instance?.OnRewardApplied();
+    }
+
+    private bool BuildRecipientSelectionUi()
+    {
+        try
+        {
+            var canvas = FindObjectOfType<Canvas>();
+            if (canvas == null)
+                return false;
+
+            ClearRecipientSelectionUi();
+            _recipientContainer = new GameObject("Runtime Reward Recipients", typeof(RectTransform));
+            _recipientContainer.transform.SetParent(canvas.transform, false);
+            var containerRect = _recipientContainer.GetComponent<RectTransform>();
+            containerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            containerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            containerRect.pivot = new Vector2(0.5f, 0.5f);
+            containerRect.anchoredPosition = Vector2.zero;
+            containerRect.sizeDelta = new Vector2(700f, 420f);
+
+            SetCardUiVisible(false);
+            if (TitleText != null)
+                TitleText.text = "CHOOSE A UNIT";
+
+            var recipients = GetDeterministicAliveRecipients(_runState);
+            for (int i = 0; i < recipients.Count; i++)
+                CreateRecipientButton(_recipientContainer.transform, recipients[i], i);
+
+            _isSelectingRecipient = _recipientButtons.Count > 0;
+            if (!_isSelectingRecipient)
+            {
+                ClearRecipientSelectionUi();
+                SetCardUiVisible(true);
+            }
+            return _isSelectingRecipient;
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogWarning($"RewardScreen: Recipient UI unavailable; using deterministic fallback. {exception.Message}");
+            ClearRecipientSelectionUi();
+            SetCardUiVisible(true);
+            return false;
+        }
+    }
+
+    private void CreateRecipientButton(Transform parent, Piece piece, int index)
+    {
+        var buttonObject = new GameObject($"Reward Recipient {index}", typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        var rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, -20f - index * 72f);
+        rect.sizeDelta = new Vector2(560f, 56f);
+
+        var button = buttonObject.GetComponent<Button>();
+        var colors = button.colors;
+        colors.normalColor = new Color(0.16f, 0.2f, 0.28f, 1f);
+        colors.highlightedColor = new Color(0.25f, 0.35f, 0.5f, 1f);
+        colors.pressedColor = new Color(0.35f, 0.45f, 0.65f, 1f);
+        button.colors = colors;
+
+        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+        labelObject.transform.SetParent(buttonObject.transform, false);
+        var labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(14f, 4f);
+        labelRect.offsetMax = new Vector2(-14f, -4f);
+        var label = labelObject.GetComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 20;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.color = Color.white;
+        label.text = $"{piece.Name}    HP {piece.Hp}/{piece.EffectiveMaxHp}";
+
+        string capturedId = piece.Id;
+        button.onClick.AddListener(() => OnRecipientClicked(capturedId));
+        _recipientButtons.Add(button);
+    }
+
+    private void OnRecipientClicked(string pieceId)
+    {
+        if (!_isSelectingRecipient || _runState == null)
+            return;
+
+        var piece = _runState.Pieces.FirstOrDefault(candidate => candidate != null && candidate.Id == pieceId
+            && !candidate.IsDead);
+        if (piece == null)
+            return;
+
+        var option = _pendingOption;
+        ClearRecipientSelectionUi();
+        _isSelectingRecipient = false;
+        SetCardUiVisible(true);
+        ApplyReward(piece, option);
+        Debug.Log($"Reward applied: {option.Description} -> {piece.Name}");
+        RunManager.Instance?.OnRewardApplied();
+    }
+
+    private void SetCardUiVisible(bool visible)
+    {
+        var cardButtons = new[] { CardButton0, CardButton1, CardButton2 };
+        var cardTexts = new[] { CardText0, CardText1, CardText2 };
+        foreach (var button in cardButtons)
+            if (button != null) button.gameObject.SetActive(visible);
+        foreach (var text in cardTexts)
+            if (text != null) text.gameObject.SetActive(visible);
+    }
+
+    private void ClearRecipientSelectionUi()
+    {
+        foreach (var button in _recipientButtons)
+            if (button != null) button.onClick.RemoveAllListeners();
+        _recipientButtons.Clear();
+        if (_recipientContainer != null)
+        {
+            if (Application.isPlaying)
+                Destroy(_recipientContainer);
+            else
+                DestroyImmediate(_recipientContainer);
+            _recipientContainer = null;
+        }
     }
 
     private void ApplyReward(Piece piece, RewardOption option)

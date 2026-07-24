@@ -137,6 +137,8 @@ namespace Game.PlayMode.Tests
             var before = originalRun.Pieces.ToDictionary(piece => piece, PieceProgress.Capture);
 
             SubmitButton(rewardScreen.CardButton0);
+            yield return null;
+            SubmitRewardRecipient(rewardScreen, expectedRecipient);
             yield return WaitForScene("Map", SceneTimeoutSeconds);
 
             Assert.That(RunManager.Instance, Is.SameAs(manager));
@@ -257,6 +259,8 @@ namespace Game.PlayMode.Tests
                 var rewardScreen = Object.FindObjectOfType<RewardScreen>();
                 Assert.That(rewardScreen, Is.Not.Null);
                 SubmitButton(rewardScreen.CardButton0);
+                yield return null;
+                SubmitFirstRewardRecipient(rewardScreen);
 
                 if (nodeType == MapNodeType.Boss)
                     yield return WaitForScene("GameOver", SceneTimeoutSeconds);
@@ -371,6 +375,26 @@ namespace Game.PlayMode.Tests
                 new BaseEventData(eventSystem),
                 ExecuteEvents.submitHandler);
             Assert.That(submitted, Is.True, $"Button '{button.name}' did not handle the submit event.");
+        }
+
+        private static void SubmitRewardRecipient(RewardScreen rewardScreen, Piece expectedRecipient)
+        {
+            var recipients = RewardScreen.GetDeterministicAliveRecipients(
+                GetPrivateField<RunState>(rewardScreen, "_runState"));
+            int index = recipients.ToList().IndexOf(expectedRecipient);
+            Assert.That(index, Is.GreaterThanOrEqualTo(0), "Expected reward recipient must be alive.");
+            var buttons = GetPrivateField<List<Button>>(rewardScreen, "_recipientButtons");
+            Assert.That(buttons, Is.Not.Null);
+            Assert.That(buttons.Count, Is.EqualTo(recipients.Count));
+            SubmitButton(buttons[index]);
+        }
+
+        private static void SubmitFirstRewardRecipient(RewardScreen rewardScreen)
+        {
+            var buttons = GetPrivateField<List<Button>>(rewardScreen, "_recipientButtons");
+            Assert.That(buttons, Is.Not.Null);
+            Assert.That(buttons.Count, Is.GreaterThan(0), "Reward selection should expose alive recipients.");
+            SubmitButton(buttons[0]);
         }
 
         private static void TriggerEngineVictory(CombatEngine engine, Team winner)

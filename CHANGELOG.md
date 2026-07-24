@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.4 — Player-Selected Reward Recipients (2026-07-24)
+
+### Added
+- **Two-step reward selection**: after choosing a reward card, the player selects
+  an alive unit from deterministic runtime-generated recipient buttons.
+- **Recipient details**: each button shows the unit name, current HP, and effective
+  max HP; only the selected unit receives the pending reward.
+- **Safe fallback**: the existing seeded legacy recipient selection remains active
+  only when recipient UI creation fails or no unit is alive.
+
+### Verification
+- Focused reward tests: **4/4** passed.
+- Full suites: **190/190 EditMode** and **31/31 PlayMode** tests passed.
+- Project baseline `CollectErrors`: empty; Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7.3 — Explicit Reward Effects (2026-07-24)
 
 ### Changed
@@ -7,11 +22,11 @@
   including `MaxHpBoost`; descriptions remain UI-only and are not parsed for gameplay.
 
 ### Scope
-- Player-selected reward recipients remain the next Phase 3 deliverable.
+- Player-selected reward recipients are delivered in v0.7.4 above.
 
 ### Verification
 - Focused reward tests: **4/4** passed.
-- Full suites: **188/188 EditMode** and **31/31 PlayMode** tests passed.
+- Full suites at this slice: **188/188 EditMode** and **31/31 PlayMode** tests passed.
 - Project baseline `CollectErrors`: empty; Unity Console: **0 errors and 0 warnings**.
 
 ## v0.7.2 — Route/Roster State Display (2026-07-24)
