@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.8 — Reward Determinism Audit (2026-07-24)
+
+### Changed
+- **Deterministic reward audit**: verified reward options consume the derived
+  `RunRandomStream.RewardOptions` seed and use the platform-stable `DeterministicRandom`
+  sampler.
+- **Reproducibility coverage**: `RunReproducibilityTests` verifies same-seed/progress
+  reward snapshots and stable, independent reward streams.
+
+### Scope
+- Documentation-only audit; no production C# code changed.
+
+### Verification
+- Full suites: **198/198 EditMode** and **31/31 PlayMode** tests passed.
+- Unity Console: **0 errors and 0 warnings**.
+
 ## v0.7.7 — Effective Max HP Audit (2026-07-24)
 
 ### Changed

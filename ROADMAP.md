@@ -186,7 +186,7 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
   and complete gameplay-signature matching; incompatible-ability rules remain deferred
   pending compatibility metadata.
 - Define mana recovery and reward pools for normal, elite, and boss progression.
-- Make rewards deterministic when using the same run seed.
+- [x] Make rewards deterministic when using the same run seed.
 
 ### Player-selected reward recipients slice ✅ Verified (2026-07-24)
 
@@ -242,6 +242,18 @@ definition/implementation and explanatory comments. Runtime rules and UI use
 `EffectiveMaxHp` for healing, combat thresholds, previews, HUD values, map roster
 summaries, and combat feedback. This is a documentation-only audit; no production
 code changed.
+
+The retained full-suite evidence remains **198/198 EditMode** and **31/31
+PlayMode** tests, with **0 Console errors and 0 warnings**.
+
+### Reward determinism audit ✅ Verified (2026-07-24)
+
+`RewardScreen.GenerateRewardOptions` consumes the deterministic
+`RunRandomStream.RewardOptions` seed derived from the run seed and combat progress;
+the reward pool is sampled through `DeterministicRandom.PickDistinctIndices`. The
+`RunReproducibilityTests` suite verifies identical reward snapshots for the same
+seed/progress and stable, independent reward streams. This is a documentation-only
+audit; no production code changed.
 
 The retained full-suite evidence remains **198/198 EditMode** and **31/31
 PlayMode** tests, with **0 Console errors and 0 warnings**.
