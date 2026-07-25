@@ -40,6 +40,8 @@ public sealed class CombatHudView : MonoBehaviour
     [Min(0.1f)] public float FeedbackDuration = 1.75f;
 
     [Header("Actions")]
+    [Tooltip("Optional root for the lower action panel. When unset, the parent of ActionRuleText is used.")]
+    public GameObject ActionPanelRoot;
     public RectTransform AbilitiesContainer;
     public Button AbilityButtonTemplate;
     public Button PassButton;
@@ -64,6 +66,7 @@ public sealed class CombatHudView : MonoBehaviour
                                 && PassButton != null;
 
     public IReadOnlyList<Button> AbilityButtons => _abilityButtons;
+    public bool IsSelectionVisible { get; private set; }
     public CombatFeedbackTone LastFeedbackTone { get; private set; }
     public string LastFeedbackMessage { get; private set; } = string.Empty;
     public bool HasPersistentFeedback => _persistentFeedback && FeedbackToast != null && FeedbackToast.activeSelf;
@@ -87,6 +90,7 @@ public sealed class CombatHudView : MonoBehaviour
             origin => _passRequested?.Invoke(origin));
         AbilityButtonTemplate.gameObject.SetActive(false);
         ClearFeedback();
+        SetSelectionVisible(false);
     }
 
     public void Render(CombatHudState state)
@@ -95,6 +99,8 @@ public sealed class CombatHudView : MonoBehaviour
             throw new InvalidOperationException("CombatHudView is missing serialized UI references.");
         if (state == null)
             throw new ArgumentNullException(nameof(state));
+
+        SetSelectionVisible(state.HasSelection);
 
         ActiveUnitText.text = state.ActiveUnit;
         ResourcesText.text = state.Resources;
@@ -139,8 +145,38 @@ public sealed class CombatHudView : MonoBehaviour
         }
     }
 
+    /// <summary>Shows the lower action panel only while a piece is selected.</summary>
+    public void SetSelectionVisible(bool visible)
+    {
+        IsSelectionVisible = visible;
+        GameObject panel = ResolveActionPanelRoot();
+        if (panel != null)
+        {
+            panel.SetActive(visible);
+            return;
+        }
+
+        // Fallback for lightweight test fixtures without the scene's panel root.
+        if (AbilitiesContainer != null)
+            AbilitiesContainer.gameObject.SetActive(visible);
+        if (PassButton != null)
+            PassButton.gameObject.SetActive(visible);
+    }
+
+    private GameObject ResolveActionPanelRoot()
+    {
+        if (ActionPanelRoot != null)
+            return ActionPanelRoot;
+        if (ActionRuleText != null && ActionRuleText.transform.parent != null)
+            return ActionRuleText.transform.parent.gameObject;
+        if (AbilitiesContainer != null && AbilitiesContainer.parent != null)
+            return AbilitiesContainer.parent.gameObject;
+        return null;
+    }
+
     public void ShowCombatResult(string message)
     {
+        SetSelectionVisible(false);
         ClearFeedback();
         if (ActiveUnitText != null)
             ActiveUnitText.text = message;

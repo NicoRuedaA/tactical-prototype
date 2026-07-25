@@ -30,7 +30,8 @@ namespace Game.Core.Tests
             };
             var engine = new CombatEngine(board, new[] { player, enemy });
 
-            CombatHudState state = new CombatHudPresenter().Build(engine, false);
+            engine.SelectPiece(player);
+            CombatHudState state = new CombatHudPresenter().Build(engine, false, player);
 
             Assert.That(state.ActiveUnit, Is.EqualTo("Active: Vanguard (Player)"));
             Assert.That(state.Resources, Is.EqualTo("HP 11/13  |  Mana 4/5"));
@@ -61,7 +62,8 @@ namespace Game.Core.Tests
             };
             var engine = new CombatEngine(board, new[] { player, enemy });
 
-            CombatHudState state = new CombatHudPresenter().Build(engine, false);
+            engine.SelectPiece(player);
+            CombatHudState state = new CombatHudPresenter().Build(engine, false, player);
 
             Assert.That(state.Abilities.Select(item => item.Hotkey), Is.EqualTo(new[] { 1, 2, 3 }));
             Assert.That(state.Abilities.Select(item => item.Name),
@@ -97,7 +99,8 @@ namespace Game.Core.Tests
             };
             var engine = new CombatEngine(board, new[] { player, enemy });
 
-            CombatHudState state = new CombatHudPresenter().Build(engine, false);
+            engine.SelectPiece(player);
+            CombatHudState state = new CombatHudPresenter().Build(engine, false, player);
 
             Assert.That(state.Abilities, Has.Count.EqualTo(10));
             Assert.That(state.Abilities[8].HasHotkey, Is.True);
@@ -188,6 +191,7 @@ namespace Game.Core.Tests
                 Coords = new Axial(2, 0),
             };
             var engine = new CombatEngine(board, new[] { player, ally, enemy });
+            engine.SelectPiece(player);
             var presenter = new CombatHudPresenter();
 
             var expectedMoves = board.Tiles
@@ -240,9 +244,11 @@ namespace Game.Core.Tests
                 Coords = new Axial(1, 0),
             };
             var engine = new CombatEngine(board, new[] { first, second });
+            engine.SelectPiece(first);
             engine.Pass();
+            engine.SelectPiece(second);
 
-            CombatHudState state = new CombatHudPresenter().Build(engine, false);
+            CombatHudState state = new CombatHudPresenter().Build(engine, false, second);
 
             Assert.That(engine.Current, Is.SameAs(second));
             Assert.That(state.TurnOrder, Is.EqualTo("Turn order: ▶ Second  ›  First"));
@@ -268,6 +274,7 @@ namespace Game.Core.Tests
                 Coords = new Axial(2, 0),
             };
             var engine = new CombatEngine(board, new[] { caster, ally, enemy });
+            engine.SelectPiece(caster);
 
             var targets = new CombatHudPresenter()
                 .GetLegalAbilityTargetCoords(engine, caster, ability);
@@ -305,6 +312,35 @@ namespace Game.Core.Tests
             Assert.That(input.CombatView, Is.SameAs(runner.CombatView));
             Assert.That(input.TargetCamera, Is.SameAs(Camera.main));
             Assert.That(input.CombatHud, Is.SameAs(huds[0]));
+        }
+
+        [Test]
+        public void HudActionPanel_HidesAllLowerControlsUntilPieceIsSelected()
+        {
+            var panel = new GameObject("Action Panel");
+            var rule = new GameObject("Action Rule");
+            rule.transform.SetParent(panel.transform);
+            var abilities = new GameObject("Abilities").AddComponent<RectTransform>();
+            abilities.SetParent(panel.transform);
+            var pass = new GameObject("Pass").AddComponent<UnityEngine.UI.Button>();
+            pass.transform.SetParent(panel.transform);
+            var hudObject = new GameObject("HUD");
+            var hud = hudObject.AddComponent<CombatHudView>();
+            hud.ActionRuleText = rule.AddComponent<UnityEngine.UI.Text>();
+            hud.AbilitiesContainer = abilities;
+            hud.PassButton = pass;
+            try
+            {
+                hud.SetSelectionVisible(false);
+                Assert.That(panel.activeSelf, Is.False);
+                hud.SetSelectionVisible(true);
+                Assert.That(panel.activeSelf, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(hudObject);
+                Object.DestroyImmediate(panel);
+            }
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)

@@ -55,8 +55,7 @@ namespace Game.PlayMode.Tests
             _runner.CancelInvoke();
             _input = _runner.PlayerInput;
             _hud = _input.CombatHud;
-            while (!_runner.Engine.IsOver && _runner.Engine.Current.Team != Team.Player)
-                _runner.Engine.Pass();
+            AdvanceToTeam(Team.Player);
             _runner.CancelInvoke();
             Assert.That(_runner.Engine.IsOver, Is.False);
             _input.SendMessage(
@@ -86,6 +85,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator PassShortcut_WithFocusedButtonAndNoFocus_ConsumesOneTurnEach()
         {
+            SelectPlayerActor();
             EventSystem eventSystem = EventSystem.current;
             Assert.That(eventSystem, Is.Not.Null);
 
@@ -109,8 +109,8 @@ namespace Game.PlayMode.Tests
             yield return null;
 
             _runner.CancelInvoke();
-            while (_runner.Engine.Current.Team != Team.Player)
-                _runner.Engine.Pass();
+            AdvanceToTeam(Team.Player);
+            SelectPlayerActor();
             _runner.CancelInvoke();
             _runner.CombatView.CompleteActiveFeedbackImmediately();
             eventSystem.SetSelectedGameObject(null);
@@ -130,6 +130,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator SpaceShortcut_WithFocusedButton_PassesExactlyOnce()
         {
+            SelectPlayerActor();
             EventSystem eventSystem = EventSystem.current;
             Assert.That(eventSystem, Is.Not.Null);
             eventSystem.SetSelectedGameObject(_hud.PassButton.gameObject);
@@ -152,7 +153,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator SameFrameWorldMoveAndSpace_ExecutesAtMostOneAction()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = AdvanceToFrontlinePlayer();
             Axial destination = FindWorldClickableCoord(_runner.Engine.Board.Tiles
                 .Select(tile => tile.Coords)
                 .Where(coord => _runner.Engine.EvaluateAction(
@@ -180,6 +181,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator SameFrameUiSubmitAndSpace_ExecutesAtMostOneAction()
         {
+            SelectPlayerActor();
             EventSystem eventSystem = EventSystem.current;
             Assert.That(eventSystem, Is.Not.Null);
             eventSystem.SetSelectedGameObject(_hud.PassButton.gameObject);
@@ -203,14 +205,17 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator SameFrameAbilityClickAndSpace_ExecutesAtMostOneAction()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = AdvanceToFrontlinePlayer();
+            var testAbility = new TestAbility(EffectType.Damage, AffectsTeam.Enemies);
+            actor.AddAbility(testAbility);
+            _input.SendMessage("RefreshHud", SendMessageOptions.RequireReceiver);
             var abilities = actor.Abilities
                 .Where(ability => ability.AbilityType == AbilityType.Active)
                 .ToList();
             var presenter = new CombatHudPresenter();
-            int abilityIndex = Enumerable.Range(0, abilities.Count)
-                .First(index => presenter.CanUseAbility(
-                    _runner.Engine, actor, abilities[index]));
+            int abilityIndex = abilities.IndexOf(testAbility);
+            Assert.That(abilityIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(presenter.CanUseAbility(_runner.Engine, actor, testAbility), Is.True);
             Axial target = FindWorldClickableCoord(
                 presenter.GetLegalAbilityTargetCoords(
                     _runner.Engine, actor, abilities[abilityIndex]));
@@ -243,7 +248,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator ActiveFeedback_IgnoresKeyboardAndConsumesSkipBeforeNextWorldClick()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = AdvanceToFrontlinePlayer();
             Axial origin = actor.Coords;
             Axial destination = FindWorldClickableCoord(_runner.Engine.Board.Tiles
                 .Select(tile => tile.Coords)
@@ -295,7 +300,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator BusyPassButtonClick_SkipsFeedbackWithoutPassing()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             PieceView actorView = _runner.CombatView.GetPieceView(actor);
             actorView.HitDuration = 60f;
             actorView.SetCompleteAnimationsImmediately(false);
@@ -320,7 +325,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator BusyAbilityButtonClick_SkipsFeedbackWithoutSelectingAbility()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             var abilities = actor.Abilities
                 .Where(ability => ability.AbilityType == AbilityType.Active)
                 .ToList();
@@ -355,7 +360,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator HeldMouseAndKeyboardSubmit_DoesNotSkipActiveFeedback()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             PieceView actorView = _runner.CombatView.GetPieceView(actor);
             actorView.HitDuration = 60f;
             actorView.SetCompleteAnimationsImmediately(false);
@@ -447,12 +452,8 @@ namespace Game.PlayMode.Tests
         {
             Piece boss = _runner.Engine.AliveOf(Team.Enemy).First(piece => piece.IsQueen);
             _runner.CancelInvoke();
-            int guard = _runner.Engine.Turns.Count + 1;
-            while (!_runner.Engine.IsOver && _runner.Engine.Current != boss && guard-- > 0)
-            {
-                _runner.Engine.Pass();
-                _runner.CancelInvoke();
-            }
+            AdvanceToTeam(Team.Enemy);
+            Assert.That(_runner.Engine.SelectPiece(boss), Is.True);
             Assert.That(_runner.Engine.Current, Is.SameAs(boss));
 
             boss.TakeDamage(boss.Hp - 1);
@@ -462,7 +463,7 @@ namespace Game.PlayMode.Tests
             bossAi.TakeTurn(_runner.Engine);
 
             Assert.That(_runner.Engine.TurnCount, Is.EqualTo(turnBefore + 1));
-            Assert.That(_runner.Engine.Current, Is.Not.SameAs(boss));
+            Assert.That(_runner.Engine.Current, Is.Null);
             Assert.That(_hud.LastFeedbackMessage, Does.StartWith("BOSS PHASE 2"));
 
             _testMouse.MakeCurrent();
@@ -505,7 +506,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator PreviewHighlights_ShowSelectedMoveAndOccupiedAttackIndicators()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = AdvanceToFrontlinePlayer();
             PieceView actorView = _runner.CombatView.GetPieceView(actor);
             Axial reachable = _runner.Engine.Board.Tiles
                 .Select(tile => tile.Coords)
@@ -543,7 +544,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator FriendlyTargetRejection_ShowsTypedToastAndPreservesTurnAndResources()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             Piece ally = _runner.Engine.AliveOf(Team.Player)
                 .First(piece => piece != actor);
             int turnBefore = _runner.Engine.TurnCount;
@@ -565,8 +566,11 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator LegalAttack_ExecutesFromOccupiedTileSurface()
         {
-            Piece actor = _runner.Engine.Current;
-            Piece target = _runner.Engine.AliveOf(Team.Enemy).First();
+            Piece actor = AdvanceToFrontlinePlayer();
+            Piece target = _runner.Engine.AliveOf(Team.Enemy)
+                .OrderBy(piece => piece.Coords.R)
+                .ThenBy(piece => piece.Coords.Q)
+                .First();
             actor.AddBonusAttackRange(100);
             _input.SendMessage("ShowMoveAndAttackHighlights", SendMessageOptions.RequireReceiver);
             Assert.That(_runner.Engine.EvaluateAction(
@@ -591,8 +595,11 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator LegalAttack_ExecutesFromPieceSurface()
         {
-            Piece actor = _runner.Engine.Current;
-            Piece target = _runner.Engine.AliveOf(Team.Enemy).First();
+            Piece actor = AdvanceToFrontlinePlayer();
+            Piece target = _runner.Engine.AliveOf(Team.Enemy)
+                .OrderBy(piece => piece.Coords.R)
+                .ThenBy(piece => piece.Coords.Q)
+                .First();
             actor.AddBonusAttackRange(100);
             int hpBefore = target.Hp;
             int turnBefore = _runner.Engine.TurnCount;
@@ -608,7 +615,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator AbilityCancelAndInsufficientMana_ShowDistinctFeedbackWithoutActing()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             var activeAbilities = actor.Abilities
                 .Where(ability => ability.AbilityType == AbilityType.Active)
                 .ToList();
@@ -651,7 +658,7 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator PendingResolutionAndWrongTurn_RejectionsDoNotAdvanceTurn()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = SelectPlayerActor();
             Piece pendingEnemy = _runner.Engine.AliveOf(Team.Enemy)
                 .First(piece => !piece.IsQueen);
             Axial destination = _runner.Engine.Board.Tiles
@@ -671,8 +678,11 @@ namespace Game.PlayMode.Tests
             _runner.Engine.ResolvePendingDeaths();
             _runner.CombatView.CompleteActiveFeedbackImmediately();
             _runner.CancelInvoke();
-            while (!_runner.Engine.IsOver && _runner.Engine.Current.Team == Team.Player)
+            while (!_runner.Engine.IsOver && _runner.Engine.CurrentTeam == Team.Player)
+            {
+                Assert.That(_runner.Engine.SelectPiece(actor), Is.True);
                 _runner.Engine.Pass();
+            }
             _runner.CancelInvoke();
             _runner.CombatView.CompleteActiveFeedbackImmediately();
             if (_runner.Engine.IsOver)
@@ -794,6 +804,44 @@ namespace Game.PlayMode.Tests
             InputSystem.Update();
             _testMouse.MakeCurrent();
             _testKeyboard.MakeCurrent();
+        }
+
+        private Piece AdvanceToFrontlinePlayer()
+        {
+            Piece actor = _runner.Engine.AliveOf(Team.Player)
+                .First(piece => piece.Coords.R == 1);
+            AdvanceToTeam(Team.Player);
+            Assert.That(_runner.Engine.SelectPiece(actor), Is.True);
+            Assert.That(_runner.Engine.Current, Is.SameAs(actor));
+            return actor;
+        }
+
+        private Piece SelectPlayerActor()
+        {
+            AdvanceToTeam(Team.Player);
+            Piece actor = _runner.Engine.AliveOf(Team.Player).First();
+            Assert.That(_runner.Engine.SelectPiece(actor), Is.True);
+            Assert.That(_runner.Engine.Current, Is.SameAs(actor));
+            return actor;
+        }
+
+        private void AdvanceToTeam(Team team)
+        {
+            _runner.CancelInvoke();
+            int remaining = _runner.Engine.Turns.Count + 1;
+            while (!_runner.Engine.IsOver
+                   && _runner.Engine.CurrentTeam != team
+                   && remaining-- > 0)
+            {
+                Piece actor = _runner.Engine.AliveOf(_runner.Engine.CurrentTeam).First();
+                Assert.That(_runner.Engine.SelectPiece(actor), Is.True);
+                _runner.Engine.Pass();
+                _runner.CancelInvoke();
+                _runner.CombatView.CompleteActiveFeedbackImmediately();
+            }
+
+            Assert.That(_runner.Engine.IsOver, Is.False);
+            Assert.That(_runner.Engine.CurrentTeam, Is.EqualTo(team));
         }
 
         private Axial FindWorldClickableCoord(IEnumerable<Axial> candidates)

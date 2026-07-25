@@ -52,7 +52,9 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator PieceVitalsAndMove_UseEffectiveStatsAndCompleteAtDestination()
         {
-            Piece actor = _runner.Engine.Current;
+            Piece actor = _runner.Engine.AliveOf(Team.Player)
+                .First(piece => piece.Coords.R == 1);
+            AdvanceTo(actor);
             PieceView actorView = _view.GetPieceView(actor);
             actor.AddBonusMaxHp(5);
             actor.TakeDamage(3);
@@ -205,7 +207,8 @@ namespace Game.PlayMode.Tests
         [UnityTest, Timeout(15000)]
         public IEnumerator BasicAttackOverkill_PresentsOnlyActualAppliedDamage()
         {
-            Piece attacker = _runner.Engine.Current;
+            Piece attacker = _runner.Engine.AliveOf(Team.Player).First();
+            AdvanceTo(attacker);
             Piece target = _runner.Engine.AliveOf(Team.Enemy)
                 .First(piece => !piece.IsQueen);
             attacker.AddBonusAttackRange(100);
@@ -310,14 +313,18 @@ namespace Game.PlayMode.Tests
             _runner.CancelInvoke();
             int remaining = _runner.Engine.Turns.Count + 1;
             while (!_runner.Engine.IsOver
-                   && _runner.Engine.Current != piece
+                   && _runner.Engine.CurrentTeam != piece.Team
                    && remaining-- > 0)
             {
+                Piece actor = _runner.Engine.AliveOf(_runner.Engine.CurrentTeam).First();
+                Assert.That(_runner.Engine.SelectPiece(actor), Is.True);
                 _runner.Engine.Pass();
                 _runner.CancelInvoke();
             }
 
             Assert.That(_runner.Engine.IsOver, Is.False);
+            Assert.That(_runner.Engine.CurrentTeam, Is.EqualTo(piece.Team));
+            Assert.That(_runner.Engine.SelectPiece(piece), Is.True);
             Assert.That(_runner.Engine.Current, Is.SameAs(piece));
         }
 
@@ -382,15 +389,18 @@ namespace Game.PlayMode.Tests
             runner.TurnDelay = 0.05f;
 
             Piece lastPlayer = runner.Engine.AliveOf(Team.Player).Last();
-            while (runner.Engine.Current != lastPlayer)
+            while (runner.Engine.CurrentTeam != Team.Player)
             {
                 // Initiative order interleaves player and enemy pieces. Advance
                 // through any intervening enemy turns without letting their
                 // scheduled AI action run during fixture setup.
                 runner.CancelInvoke();
+                Piece actorToPass = runner.Engine.AliveOf(runner.Engine.CurrentTeam).First();
+                Assert.That(runner.Engine.SelectPiece(actorToPass), Is.True);
                 runner.Engine.Pass();
             }
 
+            Assert.That(runner.Engine.SelectPiece(lastPlayer), Is.True);
             Piece actor = runner.Engine.Current;
             Axial destination = runner.Engine.Board.Tiles
                 .Select(tile => tile.Coords)
@@ -402,15 +412,16 @@ namespace Game.PlayMode.Tests
             int turnBeforeMove = runner.Engine.TurnCount;
 
             Assert.That(runner.Engine.Move(actor, destination), Is.True);
-            Piece scheduledEnemy = runner.Engine.Current;
             int turnAfterMove = runner.Engine.TurnCount;
-            Assert.That(scheduledEnemy.Team, Is.EqualTo(Team.Enemy));
+            Assert.That(runner.Engine.Current, Is.Null);
+            Assert.That(runner.Engine.CurrentTeam, Is.EqualTo(Team.Enemy));
             Assert.That(turnAfterMove, Is.EqualTo(turnBeforeMove + 1));
             Assert.That(runner.CombatView.HasActiveFeedback, Is.True);
 
             yield return new WaitForSecondsRealtime(0.12f);
 
-            Assert.That(runner.Engine.Current, Is.SameAs(scheduledEnemy));
+            Assert.That(runner.Engine.Current, Is.Null);
+            Assert.That(runner.Engine.CurrentTeam, Is.EqualTo(Team.Enemy));
             Assert.That(runner.Engine.TurnCount, Is.EqualTo(turnAfterMove),
                 "The scheduled AI turn must wait while movement feedback remains active.");
             Assert.That(runner.CombatView.HasActiveFeedback, Is.True);

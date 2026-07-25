@@ -78,17 +78,6 @@ public class PlayerInputController : MonoBehaviour
 
         if (_engine == null || _engine.IsOver) return;
 
-        if (current != null && current.Team == Team.Player && !Runner.AutoPlayBothSides)
-        {
-            _selected = current;
-            _lastPlayerActor = current;
-            ShowMoveAndAttackHighlights();
-        }
-        else if (_lastPlayerActor == null)
-        {
-            _lastPlayerActor = _engine.AliveOf(Team.Player).FirstOrDefault();
-        }
-
         CombatHud?.ClearTransientFeedback();
         RefreshHud();
     }
@@ -177,7 +166,7 @@ public class PlayerInputController : MonoBehaviour
         }
 
         if (_engine.IsOver) return;
-        if (_engine.Current == null) return;
+        if (_engine.CurrentTeam != Team.Player) return;
         if (Runner.AutoPlayBothSides) return;
 
         if (Mouse.current == null || Keyboard.current == null) return;
@@ -185,16 +174,18 @@ public class PlayerInputController : MonoBehaviour
         // Ability selection keys
         HandleAbilityKeys();
 
-        if (Mouse.current.leftButton.wasPressedThisFrame)
+        if (!IsCameraModifierHeld() && Mouse.current.leftButton.wasPressedThisFrame)
             TryHandleWorldClick();
 
-        // Right-click or Escape to cancel ability
-        if (Mouse.current.rightButton.wasPressedThisFrame || Keyboard.current.escapeKey.wasPressedThisFrame)
+        // Right-click or Escape to cancel ability. Ctrl+mouse is reserved for camera controls.
+        if ((!IsCameraModifierHeld() && Mouse.current.rightButton.wasPressedThisFrame)
+            || Keyboard.current.escapeKey.wasPressedThisFrame)
             CancelAbility();
 
-        // Space is a dedicated Pass shortcut in this project. Enter is also the
-        // uGUI Submit key, so it yields when a selectable control has focus.
-        if (Keyboard.current.spaceKey.wasPressedThisFrame)
+        // Space is a dedicated Pass shortcut in this project. Ctrl+Space is
+        // reserved for the combat camera reset, while Enter remains the uGUI
+        // Submit key and yields when a selectable control has focus.
+        if (!IsCameraModifierHeld() && Keyboard.current.spaceKey.wasPressedThisFrame)
             TryPassFromKeyboard(false);
         else if (Keyboard.current.enterKey.wasPressedThisFrame)
             TryPassFromKeyboard(true);
@@ -232,9 +223,7 @@ public class PlayerInputController : MonoBehaviour
 
         if (!Physics.Raycast(ray, out RaycastHit hit))
         {
-            CombatHud?.ShowFeedback(
-                CombatHudPresenter.EmptyClickMessage,
-                CombatFeedbackTone.Invalid);
+            ClearSelection();
             return false;
         }
 
@@ -259,10 +248,26 @@ public class PlayerInputController : MonoBehaviour
 
         if (!clickedCoord.HasValue)
         {
-            CombatHud?.ShowFeedback(
-                CombatHudPresenter.EmptyClickMessage,
-                CombatFeedbackTone.Invalid);
+            ClearSelection();
             return false;
+        }
+
+        // A player chooses the actor explicitly each turn. Clicking another
+        // living ally changes the selection; clicking an empty area cancels it.
+        if (clickedPiece != null
+            && clickedPiece.Team == Team.Player
+            && !clickedPiece.IsDead)
+        {
+            if (_engine.SelectPiece(clickedPiece))
+            {
+                _selected = clickedPiece;
+                _lastPlayerActor = clickedPiece;
+                _selectedAbility = null;
+                ShowMoveAndAttackHighlights();
+                CombatHud?.ClearTransientFeedback();
+                RefreshHud();
+                return true;
+            }
         }
 
         Piece actor = GetInteractionActor();
@@ -295,9 +300,7 @@ public class PlayerInputController : MonoBehaviour
             return;
         if (_selectedAbility == null)
         {
-            CombatHud?.ShowFeedback(
-                CombatHudPresenter.NothingToCancelMessage,
-                CombatFeedbackTone.Invalid);
+            ClearSelection();
             return;
         }
 
@@ -441,7 +444,7 @@ public class PlayerInputController : MonoBehaviour
     {
         if (_engine == null || CombatHud == null)
             return;
-        CombatHud.Render(_hudPresenter.Build(_engine, Runner.AutoPlayBothSides));
+        CombatHud.Render(_hudPresenter.Build(_engine, Runner.AutoPlayBothSides, _selected));
     }
 
     private void ClearHighlights()
@@ -453,13 +456,18 @@ public class PlayerInputController : MonoBehaviour
         CombatView?.ClearHighlights();
     }
 
+    private void ClearSelection()
+    {
+        _selected = null;
+        _selectedAbility = null;
+        _abilityTargetCoords.Clear();
+        ClearHighlights();
+        RefreshHud();
+    }
+
     private Piece GetInteractionActor()
     {
-        if (_selected != null)
-            return _selected;
-        if (_lastPlayerActor != null && !_lastPlayerActor.IsDead)
-            return _lastPlayerActor;
-        return _engine?.AliveOf(Team.Player).FirstOrDefault();
+        return _selected != null && !_selected.IsDead ? _selected : null;
     }
 
     private bool SubmitAction(
@@ -539,9 +547,17 @@ public class PlayerInputController : MonoBehaviour
 
     private static bool WasPointerPressedThisFrame()
     {
-        return Mouse.current != null
+        return !IsCameraModifierHeld()
+               && Mouse.current != null
                && (Mouse.current.leftButton.wasPressedThisFrame
                    || Mouse.current.rightButton.wasPressedThisFrame);
+    }
+
+    private static bool IsCameraModifierHeld()
+    {
+        Keyboard keyboard = Keyboard.current;
+        return keyboard != null
+               && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed);
     }
 
     private static bool IsAnyPointerButtonPressed()

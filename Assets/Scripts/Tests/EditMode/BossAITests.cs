@@ -38,6 +38,7 @@ namespace Game.Core.Tests
             };
 
             var ai = new BossEnemyAI(boss, phaseAbility);
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss);
             ai.TakeTurn(engine);
 
             // Phase should NOT have triggered — boss is above 50%
@@ -74,6 +75,7 @@ namespace Game.Core.Tests
             };
 
             var ai = new BossEnemyAI(boss, phaseAbility);
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss);
             ai.TakeTurn(engine);
 
             // Phase should have triggered
@@ -111,6 +113,7 @@ namespace Game.Core.Tests
             var ai = new BossEnemyAI(boss, phaseAbility);
 
             // First call triggers phase
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss);
             ai.TakeTurn(engine);
             int abilityCountFirst = boss.Abilities.Count(a => a == phaseAbility);
             Assert.AreEqual(1, abilityCountFirst);
@@ -146,6 +149,7 @@ namespace Game.Core.Tests
             };
 
             var ai = new BossEnemyAI(boss, phaseAbility, damageBuff: 4);
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss);
             ai.TakeTurn(engine);
 
             // Custom damage buff of 4 (not default 2)
@@ -209,7 +213,7 @@ namespace Game.Core.Tests
             // Boss turn → Phase triggered (already), TurnCount=3, 3%3==0 → schedule forces phaseAbility!
 
             // Player passes first
-            engine.Pass(); // TurnCount=1, Boss's turn
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss); // TurnCount=1, Boss's turn
             // First boss turn: phase triggers, adds phaseAbility
             // TurnCount=1, 1%3!=0 → no schedule
             // Default AI: picks best ability → Power Strike (8 damage)
@@ -224,7 +228,7 @@ namespace Game.Core.Tests
             // Let me check: Default AI's TryUseAbility calls engine.UseAbility which calls EndTurn
             // So after TakeTurn returns, TurnCount=2 and engine.Current = player
             
-            engine.Pass(); // TurnCount=3, engine.Current = boss
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss); // TurnCount=3, engine.Current = boss
             // Second boss turn: _phaseTriggered=true, TurnCount=3, 3%3==0 → schedule forces phaseAbility
             
             // We need to call ai.TakeTurn again but boss is now Current
@@ -304,6 +308,7 @@ namespace Game.Core.Tests
             };
 
             // Player goes first and kills boss
+            engine2.SelectPiece(player2);
             engine2.Attack(player2, boss2);
             Assert.IsTrue(boss2.IsDead);
             Assert.IsTrue(engine2.IsOver);
@@ -341,7 +346,7 @@ namespace Game.Core.Tests
             var ai = new BossEnemyAI(boss, aoeAbility, damageBuff: 0);
 
             // Player goes first → Pass → TurnCount=1
-            engine.Pass();
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(boss);
 
             // Boss turn: Phase triggers, TurnCount=1 (not %3 anyway)
             // But even on AoE schedule, mana=10 < 10 → can't afford it
@@ -383,6 +388,8 @@ namespace Game.Core.Tests
             var ai1 = new BossEnemyAI(boss1, phaseAbility);
             var ai2 = new BossEnemyAI(boss2, phaseAbility);
 
+            engine1.SelectPiece(player); engine1.Pass(); engine1.SelectPiece(boss1);
+            engine2.SelectPiece(player2); engine2.Pass(); engine2.SelectPiece(boss2);
             ai1.TakeTurn(engine1);
             ai2.TakeTurn(engine2);
 

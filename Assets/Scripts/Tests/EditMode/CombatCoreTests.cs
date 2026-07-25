@@ -40,17 +40,44 @@ namespace Game.Core.Tests
         // ── Turn order ───────────────────────────────────────────────────────
 
         [Test]
-        public void TurnOrder_FollowsInitiativeDescendingAndWraps()
+        public void TurnOrder_AlternatesTeamsAndPreservesInitiativeWithinEachTeam()
         {
-            var slow  = new Piece("slow", Team.Player, 5, 1, 1, 1, 5);
-            var fast  = new Piece("fast", Team.Enemy,  5, 1, 1, 1, 9);
-            var turns = new TurnSystem(new[] { slow, fast });
+            var playerFast = new Piece("playerFast", Team.Player, 5, 1, 1, 1, 10);
+            var playerSlow = new Piece("playerSlow", Team.Player, 5, 1, 1, 1, 6);
+            var enemyFast = new Piece("enemyFast", Team.Enemy, 5, 1, 1, 1, 9);
+            var enemySlow = new Piece("enemySlow", Team.Enemy, 5, 1, 1, 1, 5);
+            var turns = new TurnSystem(new[] { playerSlow, enemySlow, enemyFast, playerFast });
 
-            Assert.AreEqual(fast, turns.Current);
+            CollectionAssert.AreEqual(
+                new[] { playerFast, enemyFast, playerSlow, enemySlow }, turns.Order);
+            Assert.IsNull(turns.Current);
+            Assert.IsTrue(turns.Select(playerFast));
+            Assert.AreEqual(playerFast, turns.Current);
             turns.Advance();
-            Assert.AreEqual(slow, turns.Current);
+            Assert.IsTrue(turns.Select(enemyFast));
+            Assert.AreEqual(enemyFast, turns.Current);
             turns.Advance();
-            Assert.AreEqual(fast, turns.Current);
+            Assert.IsTrue(turns.Select(playerSlow));
+            Assert.AreEqual(playerSlow, turns.Current);
+            turns.Advance();
+            Assert.IsTrue(turns.Select(enemySlow));
+            Assert.AreEqual(enemySlow, turns.Current);
+            turns.Advance();
+            Assert.IsNull(turns.Current);
+        }
+
+        [Test]
+        public void TurnOrder_ContinuesSafelyWhenOneTeamIsEmpty()
+        {
+            var first = new Piece("first", Team.Player, 5, 1, 1, 1, 10);
+            var second = new Piece("second", Team.Player, 5, 1, 1, 1, 5);
+            var turns = new TurnSystem(new[] { first, second });
+
+            Assert.IsNull(turns.Current);
+            Assert.IsTrue(turns.Select(first));
+            turns.Advance();
+            Assert.IsTrue(turns.Select(second));
+            Assert.AreEqual(second, turns.Current);
         }
 
         // ── One action per turn ───────────────────────────────────────────────
@@ -61,7 +88,7 @@ namespace Game.Core.Tests
             var (engine, player, enemy) = TwoPieces(new Axial(0, 0), new Axial(3, 3));
             Assert.AreEqual(player, engine.Current);
             engine.Move(player, new Axial(0, 1));
-            Assert.AreEqual(enemy, engine.Current);
+            Assert.IsNull(engine.Current);
         }
 
         [Test]
@@ -70,7 +97,17 @@ namespace Game.Core.Tests
             var (engine, player, enemy) = TwoPieces(new Axial(0, 0), new Axial(1, 0), damage: 2);
             engine.Attack(player, enemy);
             Assert.AreEqual(enemy.MaxHp - 2, enemy.Hp);
-            Assert.AreEqual(enemy, engine.Current);
+            Assert.IsNull(engine.Current);
+        }
+
+        [Test]
+        public void Pass_AdvancesToTheOpposingTeam()
+        {
+            var (engine, player, enemy) = TwoPieces(new Axial(0, 0), new Axial(3, 3));
+
+            engine.Pass();
+
+            Assert.IsNull(engine.Current);
         }
 
         // ── Win condition ─────────────────────────────────────────────────────
@@ -82,6 +119,7 @@ namespace Game.Core.Tests
             var playerQueen = new Piece("PQ", Team.Player, 10, 3, 1, 1, 10, isQueen: true) { Coords = new Axial(0, 0) };
             var enemyQueen  = new Piece("EQ", Team.Enemy,  3,  3, 1, 1, 5,  isQueen: true) { Coords = new Axial(1, 0) };
             var engine      = new CombatEngine(board, new[] { playerQueen, enemyQueen });
+            engine.SelectPiece(playerQueen);
 
             engine.Attack(playerQueen, enemyQueen);
 
@@ -98,6 +136,9 @@ namespace Game.Core.Tests
             var enemy       = new Piece("E", Team.Enemy,  5, 2, 1, 1, 10) { Coords = new Axial(0, 0) };
             var playerQueen = new Piece("P", Team.Player, 5, 2, 1, 1, 1,  isQueen: true) { Coords = new Axial(1, 0) };
             var engine      = new CombatEngine(board, new[] { enemy, playerQueen });
+            engine.SelectPiece(playerQueen);
+            engine.Pass();
+            engine.SelectPiece(enemy);
             Assert.AreEqual(enemy, engine.Current);
 
             EnemyTurnAI.TakeTurn(engine);
@@ -114,6 +155,9 @@ namespace Game.Core.Tests
             var engine = new CombatEngine(board, new[] { enemy, player });
 
             int before = Axial.Distance(enemy.Coords, player.Coords);
+            engine.SelectPiece(player);
+            engine.Pass();
+            engine.SelectPiece(enemy);
             EnemyTurnAI.TakeTurn(engine);
             int after  = Axial.Distance(enemy.Coords, player.Coords);
 
@@ -141,6 +185,7 @@ namespace Game.Core.Tests
                 maxMana: 4, abilities: new[] { ability }) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1) { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             bool ok = engine.UseAbility(player, ability, enemy.Coords);
 
@@ -171,7 +216,7 @@ namespace Game.Core.Tests
 
             engine.UseAbility(player, ability, enemy.Coords);
 
-            Assert.AreEqual(enemy, engine.Current);
+            Assert.IsNull(engine.Current);
         }
 
         [Test]
@@ -193,6 +238,7 @@ namespace Game.Core.Tests
                 maxMana: 3, abilities: new[] { ability }) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy, 5, 1, 1, 1, 1) { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             bool ok = engine.UseAbility(player, ability, enemy.Coords);
 
@@ -224,6 +270,7 @@ namespace Game.Core.Tests
             var enemy1 = new Piece("E1", Team.Enemy, 5, 1, 1, 1, 1) { Coords = new Axial(1, 0) };
             var enemy2 = new Piece("E2", Team.Enemy, 5, 1, 1, 1, 2) { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy1, enemy2 });
+            engine.SelectPiece(player);
 
             engine.Attack(player, enemy1); // triggers OnHit splash
 
@@ -255,13 +302,15 @@ namespace Game.Core.Tests
                 abilities: new[] { regen }) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy, 10, 1, 1, 1, 1) { Coords = new Axial(3, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             // Damage the player first so healing is visible.
             player.TakeDamage(4);
             Assert.AreEqual(6, player.Hp);
 
-            // Enemy passes → player's turn starts → OnTurnStart fires.
-            engine.Pass(); // enemy passes (engine.Current = enemy after begin)
+            // Select and pass each actor; turn-start fires once per selection.
+            engine.SelectPiece(player);
+            engine.Pass();
 
             // Actually, engine hasn't called Begin() yet, so Current = player (highest initiative).
             // Let's set up so player goes first and then a full cycle happens.
@@ -272,13 +321,16 @@ namespace Game.Core.Tests
             var enemy2  = new Piece("E2", Team.Enemy, 10, 1, 1, 1, 10) { Coords = new Axial(3, 0) };
             var engine2 = new CombatEngine(board2, new[] { player2, enemy2 });
 
-            player2.TakeDamage(4); // player2 at 6 HP
+            player2.TakeDamage(6); // player2 at 4 HP
 
-            // enemy2 goes first (initiative 10), passes
-            Assert.AreEqual(enemy2, engine2.Current);
-            engine2.Pass(); // now player2's turn starts → OnTurnStart fires
+            // Player always opens; after both teams pass, player2 starts again.
+            engine2.SelectPiece(player2);
+            engine2.Pass();
+            engine2.SelectPiece(enemy2);
+            engine2.Pass();
+            engine2.SelectPiece(player2); // now player's turn starts
 
-            Assert.AreEqual(6 + 2, player2.Hp); // healed by 2
+            Assert.AreEqual(4 + 2 + 2, player2.Hp); // healed once per selected turn
         }
 
         // ── Buffs ─────────────────────────────────────────────────────────────
@@ -305,6 +357,7 @@ namespace Game.Core.Tests
                 abilities: new[] { damageBuff }) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy, 5, 1, 1, 1, 1) { Coords = new Axial(3, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             Assert.AreEqual(2, player.EffectiveDamage);
             engine.UseAbility(player, damageBuff, player.Coords);
@@ -333,10 +386,12 @@ namespace Game.Core.Tests
                 abilities: new[] { damageBuff }) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy, 5, 1, 1, 1, 1) { Coords = new Axial(5, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             engine.UseAbility(player, damageBuff, player.Coords); // uses turn, buff applied
             // enemy passes
             engine.Pass();
+            engine.SelectPiece(enemy);
             // now player's turn again — buff had 1 turn, ticked at end of player's last turn → expired
             Assert.AreEqual(2, player.EffectiveDamage); // back to base
         }
@@ -465,7 +520,9 @@ namespace Game.Core.Tests
             var enemy       = new Piece("E", Team.Enemy,  5, 2, 1, 1, 10) { Coords = new Axial(0, 0) };
             var playerQueen = new Piece("P", Team.Player, 5, 2, 1, 1, 1,  isQueen: true) { Coords = new Axial(1, 0) };
             var engine      = new CombatEngine(board, new[] { enemy, playerQueen });
-            Assert.AreEqual(enemy, engine.Current);
+            engine.SelectPiece(playerQueen);
+            engine.Pass();
+            engine.SelectPiece(enemy);
 
             DefaultEnemyAI.TakeTurn(engine);
 
@@ -481,6 +538,9 @@ namespace Game.Core.Tests
             var engine = new CombatEngine(board, new[] { enemy, player });
 
             int before = Axial.Distance(enemy.Coords, player.Coords);
+            engine.SelectPiece(player);
+            engine.Pass();
+            engine.SelectPiece(enemy);
             DefaultEnemyAI.TakeTurn(engine);
             int after  = Axial.Distance(enemy.Coords, player.Coords);
 
@@ -496,6 +556,7 @@ namespace Game.Core.Tests
             var player = new Piece("P", Team.Player, 5, 1, 1, 1, 10) { Coords = new Axial(0, 0) };
             var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1)  { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             Assert.AreEqual(0, engine.TurnCount);
         }
@@ -508,7 +569,9 @@ namespace Game.Core.Tests
             var enemy  = new Piece("E", Team.Enemy,  5, 1, 1, 1, 1)  { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { player, enemy });
 
+            engine.SelectPiece(player);
             engine.Pass(); // EndTurn #1
+            engine.SelectPiece(enemy);
             Assert.AreEqual(1, engine.TurnCount);
             engine.Pass(); // EndTurn #2
             Assert.AreEqual(2, engine.TurnCount);
@@ -523,12 +586,13 @@ namespace Game.Core.Tests
             var e1 = new Piece("E1", Team.Enemy,  5, 1, 1, 2, 10) { Coords = new Axial(3, 0) };
             var e2 = new Piece("E2", Team.Enemy,  5, 1, 1, 1, 6)  { Coords = new Axial(2, 0) };
             var engine = new CombatEngine(board, new[] { p1, p2, e1, e2 });
+            engine.SelectPiece(p1);
 
             // 4 pieces → 4 passes = 4 turns
             engine.Pass(); Assert.AreEqual(1, engine.TurnCount);
-            engine.Pass(); Assert.AreEqual(2, engine.TurnCount);
-            engine.Pass(); Assert.AreEqual(3, engine.TurnCount);
-            engine.Pass(); Assert.AreEqual(4, engine.TurnCount);
+            engine.SelectPiece(e1); engine.Pass(); Assert.AreEqual(2, engine.TurnCount);
+            engine.SelectPiece(p2); engine.Pass(); Assert.AreEqual(3, engine.TurnCount);
+            engine.SelectPiece(e2); engine.Pass(); Assert.AreEqual(4, engine.TurnCount);
         }
 
         // ── OnTurnStart ──────────────────────────────────────────────────────
@@ -544,9 +608,12 @@ namespace Game.Core.Tests
             int fires = 0;
             engine.OnTurnStart += () => fires++;
 
-            engine.Begin(); // turn 1 starts → fires = 1
-            engine.Pass();  // turn 2 starts → fires = 2
-            engine.Pass();  // turn 3 starts → fires = 3
+            engine.Begin();
+            engine.SelectPiece(player); // turn 1 starts → fires = 1
+            engine.Pass();
+            engine.SelectPiece(enemy);  // turn 2 starts → fires = 2
+            engine.Pass();
+            engine.SelectPiece(player); // turn 3 starts → fires = 3
 
             Assert.AreEqual(3, fires);
         }
@@ -562,7 +629,8 @@ namespace Game.Core.Tests
             int fires = 0;
             engine.OnTurnStart += () => fires++;
 
-            engine.Begin(); // fires = 1 (turn 1 starts)
+            engine.Begin();
+            engine.SelectPiece(playerQueen); // fires = 1
             Assert.AreEqual(1, fires);
 
             // Player kills enemy queen → game over → EndTurn NOT called
@@ -585,6 +653,7 @@ namespace Game.Core.Tests
             var player = new Piece("P", Team.Player, 5, damage, 1, 3, 10) { Coords = playerAt };
             var enemy  = new Piece("E", Team.Enemy,  5, damage, 1, 3, 1)  { Coords = enemyAt };
             var engine = new CombatEngine(board, new[] { player, enemy });
+            Assert.IsTrue(engine.SelectPiece(player));
             return (engine, player, enemy);
         }
 

@@ -37,6 +37,8 @@ namespace Game.Core
         public void TakeTurn(CombatEngine engine)
         {
             if (_boss == null || _boss.IsDead || engine.IsOver) return;
+            if (engine.Current == null && engine.CurrentTeam == Team.Enemy)
+                engine.SelectPiece(_boss);
             if (engine.Current != _boss) return;
 
             // ── Phase transition check ────────────────────────────────

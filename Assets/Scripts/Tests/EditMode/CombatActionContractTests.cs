@@ -67,6 +67,7 @@ namespace Game.Core.Tests
             var player = NewPiece("P", Team.Player, 10, hp: 10, damage: 10, queen: true, at: new Axial(0, 0));
             var enemy = NewPiece("E", Team.Enemy, 1, hp: 1, queen: true, at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
             Assert.IsTrue(engine.Attack(player, enemy));
 
             CombatActionResult result = engine.EvaluateAction(CombatActionRequest.Pass(player));
@@ -114,7 +115,7 @@ namespace Game.Core.Tests
             Assert.IsTrue(executed.IsAllowed);
             Assert.IsTrue(executed.WasExecuted);
             Assert.AreEqual(new Axial(0, 1), setup.Player.Coords);
-            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.IsNull(setup.Engine.Current);
             Assert.AreEqual(1, setup.Engine.TurnCount);
         }
 
@@ -127,6 +128,7 @@ namespace Game.Core.Tests
             var enemyBackup = NewPiece("EB", Team.Enemy, 2, at: new Axial(4, 0));
             var engine = new CombatEngine(
                 setup.Engine.Board, new[] { setup.Player, setup.Enemy, ally, enemyBackup });
+            engine.SelectPiece(setup.Player);
             int enemyHpBefore = setup.Enemy.Hp;
             int playerManaBefore = setup.Player.Mana;
             int turnBefore = engine.TurnCount;
@@ -263,6 +265,7 @@ namespace Game.Core.Tests
             var enemy1 = NewPiece("E1", Team.Enemy, 1, at: new Axial(2, 0));
             var enemy2 = NewPiece("E2", Team.Enemy, 0, at: new Axial(3, 0));
             var engine = new CombatEngine(board, new[] { player, ally, enemy1, enemy2 });
+            engine.SelectPiece(player);
 
             CombatActionResult preview = engine.EvaluateAction(
                 CombatActionRequest.UseAbility(player, ability, enemy1.Coords));
@@ -337,6 +340,7 @@ namespace Game.Core.Tests
             };
 
             setup.Engine.Pass();
+            setup.Engine.SelectPiece(setup.Enemy);
 
             Assert.NotNull(feedback);
             Assert.IsTrue(feedback.IsPassive);
@@ -354,6 +358,7 @@ namespace Game.Core.Tests
             boss.TakeDamage(11);
             var player = NewPiece("P", Team.Player, 1, hp: 30, at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { boss, player });
+            engine.SelectPiece(boss);
             var ai = new BossEnemyAI(boss, phaseAbility, damageBuff: 4);
             int eventCount = 0;
             BossPhaseTransition transition = null;
@@ -365,6 +370,9 @@ namespace Game.Core.Tests
 
             ai.TakeTurn(engine);
             engine.Pass();
+            engine.SelectPiece(player);
+            engine.Pass();
+            engine.SelectPiece(boss);
             ai.TakeTurn(engine);
 
             Assert.AreEqual(1, eventCount);
@@ -384,6 +392,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, hp: 1,
                 queen: true, at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
 
             CombatActionResult result = engine.ExecuteAction(
                 CombatActionRequest.Attack(player, enemy));
@@ -402,6 +411,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, hp: 1,
                 queen: true, at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
             AttackResolution rich = null;
             int richCount = 0;
             int legacyCount = 0;
@@ -442,6 +452,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, queen: true,
                 at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
             int combatEndedCount = 0;
             Team? winnerFromEvent = null;
             engine.CombatEnded += winner =>
@@ -477,6 +488,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, queen: true,
                 at: new Axial(1, 0));
             var engine = new CombatEngine(board, new[] { player, enemy });
+            engine.SelectPiece(player);
             int combatEndedCount = 0;
             Team? winnerFromEvent = null;
             engine.CombatEnded += winner =>
@@ -549,6 +561,7 @@ namespace Game.Core.Tests
             var enemyQueen = NewPiece("EQ", Team.Enemy, 1, queen: true,
                 at: new Axial(3, 0));
             var engine = new CombatEngine(board, new[] { player, enemyPawn, enemyQueen });
+            engine.SelectPiece(player);
             CombatActionResult reentrantResult = null;
             int pieceDiedCount = 0;
             engine.PieceDied += _ =>
@@ -582,7 +595,7 @@ namespace Game.Core.Tests
             CombatActionResult result = setup.Engine.ExecuteAction(request);
 
             Assert.IsTrue(result.WasExecuted);
-            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.IsNull(setup.Engine.Current);
             Assert.AreEqual(1, setup.Engine.TurnCount);
             AssertRejected(
                 setup.Engine.ExecuteAction(CombatActionRequest.Move(setup.Player, new Axial(0, 1))),
@@ -602,7 +615,7 @@ namespace Game.Core.Tests
             Assert.AreEqual(3, result.ManaAfter);
             Assert.AreEqual(1, result.ManaDelta);
             Assert.AreEqual(3, setup.Player.Mana);
-            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.IsNull(setup.Engine.Current);
             Assert.AreEqual(1, setup.Engine.TurnCount);
         }
 
@@ -633,7 +646,7 @@ namespace Game.Core.Tests
             Assert.AreEqual(0, result.ManaAfter);
             Assert.AreEqual(0, result.ManaDelta);
             Assert.AreEqual(0, setup.Player.Mana);
-            Assert.AreSame(setup.Enemy, setup.Engine.Current);
+            Assert.IsNull(setup.Engine.Current);
             Assert.AreEqual(1, setup.Engine.TurnCount);
         }
 
@@ -645,6 +658,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, at: new Axial(2, 0));
             player.SpendMana(4);
             var engine = new CombatEngine(board, new[] { player, enemy }, passManaRecovery: 2);
+            engine.SelectPiece(player);
 
             CombatActionResult result = engine.ExecuteAction(
                 CombatActionRequest.Pass(player));
@@ -661,6 +675,7 @@ namespace Game.Core.Tests
             var enemy = NewPiece("E", Team.Enemy, 1, at: new Axial(2, 0));
             player.SpendMana(int.MaxValue - 1);
             var engine = new CombatEngine(board, new[] { player, enemy }, int.MaxValue);
+            engine.SelectPiece(player);
 
             CombatActionResult result = engine.ExecuteAction(
                 CombatActionRequest.Pass(player));
@@ -752,6 +767,7 @@ namespace Game.Core.Tests
                 Player = player;
                 Enemy = enemy;
                 Engine = new CombatEngine(board, new[] { player, enemy });
+                Engine.SelectPiece(player);
             }
 
             public CombatEngine Engine { get; }

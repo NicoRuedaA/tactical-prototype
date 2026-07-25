@@ -16,15 +16,17 @@ public sealed class CombatHudPresenter
     public const string NothingToCancelMessage = "Nothing to cancel.";
     public const string ActionUnavailableMessage = "Action unavailable.";
 
-    public CombatHudState Build(CombatEngine engine, bool autoPlayBothSides)
+    public CombatHudState Build(
+        CombatEngine engine,
+        bool autoPlayBothSides,
+        Piece selected = null)
     {
         if (engine == null)
             throw new ArgumentNullException(nameof(engine));
 
-        Piece current = engine.Current;
+        Piece current = selected;
         bool isPlayerTurn = !engine.IsOver
-                            && current != null
-                            && current.Team == Team.Player
+                            && engine.CurrentTeam == Team.Player
                             && !autoPlayBothSides;
 
         var abilities = current == null
@@ -76,7 +78,8 @@ public sealed class CombatHudPresenter
             $"Turn order: {turnOrder}",
             ActionRule,
             Controls,
-            isPlayerTurn,
+            isPlayerTurn && selected != null,
+            selected != null,
             abilities);
     }
 
@@ -188,22 +191,24 @@ public sealed class CombatHudPresenter
 
 public sealed class CombatHudState
 {
-    public CombatHudState(
-        string activeUnit,
-        string resources,
-        string turnOrder,
-        string actionRule,
-        string controls,
-        bool canPass,
-        IReadOnlyList<CombatHudAbilityState> abilities)
+        public CombatHudState(
+            string activeUnit,
+            string resources,
+            string turnOrder,
+            string actionRule,
+            string controls,
+            bool canPass,
+            bool hasSelection,
+            IReadOnlyList<CombatHudAbilityState> abilities)
     {
         ActiveUnit = activeUnit;
         Resources = resources;
         TurnOrder = turnOrder;
         ActionRule = actionRule;
         Controls = controls;
-        CanPass = canPass;
-        Abilities = abilities ?? Array.Empty<CombatHudAbilityState>();
+            CanPass = canPass;
+            HasSelection = hasSelection;
+            Abilities = abilities ?? Array.Empty<CombatHudAbilityState>();
     }
 
     public string ActiveUnit { get; }
@@ -211,7 +216,8 @@ public sealed class CombatHudState
     public string TurnOrder { get; }
     public string ActionRule { get; }
     public string Controls { get; }
-    public bool CanPass { get; }
+        public bool CanPass { get; }
+        public bool HasSelection { get; }
     public IReadOnlyList<CombatHudAbilityState> Abilities { get; }
 }
 

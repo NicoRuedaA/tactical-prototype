@@ -34,6 +34,7 @@ namespace Game.Core.Tests
             var engine = new CombatEngine(board, new[] { elite, player });
 
             var ai = new EliteEnemyAI();
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(elite);
             ai.TakeTurn(engine);
 
             // Ability deals 4 damage (not basic attack of 2)
@@ -61,6 +62,7 @@ namespace Game.Core.Tests
             var engine = new CombatEngine(board, new[] { elite, player });
 
             var ai = new EliteEnemyAI();
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(elite);
             ai.TakeTurn(engine);
 
             // Not enough mana for ability → basic attack for 2 damage
@@ -77,6 +79,7 @@ namespace Game.Core.Tests
 
             int before = Axial.Distance(elite.Coords, player.Coords);
             var ai = new EliteEnemyAI();
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(elite);
             ai.TakeTurn(engine);
             int after  = Axial.Distance(elite.Coords, player.Coords);
 
@@ -118,6 +121,7 @@ namespace Game.Core.Tests
             var engine2 = new CombatEngine(board2, new[] { elite2, player2 });
 
             var ai2 = new EliteEnemyAI();
+            engine2.SelectPiece(player2); engine2.Pass(); engine2.SelectPiece(elite2);
             ai2.TakeTurn(engine2);
 
             // Should have used ability (5 damage) instead of moving
@@ -134,6 +138,7 @@ namespace Game.Core.Tests
             var engine = new CombatEngine(board, new[] { elite, player });
 
             var ai = new EliteEnemyAI();
+            engine.SelectPiece(player); engine.Pass(); engine.SelectPiece(elite);
             Assert.DoesNotThrow(() => ai.TakeTurn(engine));
         }
 

@@ -12,6 +12,16 @@ namespace Game.Core
         public static void TakeTurn(CombatEngine engine)
         {
             var me = engine.Current;
+            if (me == null && engine.CurrentTeam == Team.Enemy)
+            {
+                me = engine.AliveOf(Team.Enemy)
+                    .OrderByDescending(piece => engine.GetAttackTargets(piece).Count())
+                    .ThenByDescending(piece => piece.EffectiveDamage)
+                    .ThenByDescending(piece => piece.Initiative)
+                    .FirstOrDefault();
+                if (me != null)
+                    engine.SelectPiece(me);
+            }
             if (me == null || engine.IsOver) return;
 
             var foes = engine.AliveOf(Opponent(me.Team)).ToList();

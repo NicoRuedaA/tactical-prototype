@@ -21,12 +21,14 @@ namespace Game.Core
         private bool                      _isResolvingDeaths;
         private readonly Piece            _playerQueen;
         private readonly Piece            _enemyQueen;
+        private bool                      _turnStartPrepared;
 
         public Board      Board  { get; }
         public TurnSystem Turns  { get; }
 
         public IReadOnlyList<Piece> Pieces  => _pieces;
         public Piece                Current => Turns.Current;
+        public Team                 CurrentTeam => Turns.CurrentTeam;
         public Team?                Winner  { get; private set; }
         public bool                 IsOver  => Winner.HasValue;
         public bool                 HasPendingDeaths =>
@@ -75,7 +77,7 @@ namespace Game.Core
 
         public void Begin()
         {
-            OnTurnStart?.Invoke();
+            _turnStartPrepared = false;
             TurnChanged?.Invoke(Current);
         }
 
@@ -83,6 +85,25 @@ namespace Game.Core
 
         public IEnumerable<Piece> AliveOf(Team team) =>
             _pieces.Where(p => p.Team == team && !p.IsDead);
+
+        /// <summary>
+        /// Selects the actor for the active team's action. Turn-start passives
+        /// are deferred until this explicit choice exists.
+        /// </summary>
+        public bool SelectPiece(Piece piece)
+        {
+            if (!Turns.Select(piece))
+                return false;
+
+            if (!_turnStartPrepared)
+            {
+                _turnStartPrepared = true;
+                ReEvaluateAuras();
+                OnTurnStart?.Invoke();
+                TriggerPassives(piece, PassiveTrigger.OnTurnStart);
+            }
+            return true;
+        }
 
         public BfsResult GetMoveRange(Piece piece) =>
             Pathfinding.GetReachable(Board, piece.Coords, piece.EffectiveMoveRange);
@@ -324,16 +345,12 @@ namespace Game.Core
         {
             if (IsOver) return;
 
-            Current.TickBuffs();
+            Piece actor = Current;
+            actor?.TickBuffs();
             Turns.Advance();
 
-            ReEvaluateAuras();
-
             TurnCount++;
-            OnTurnStart?.Invoke();
-
-            if (!IsOver)
-                TriggerPassives(Current, PassiveTrigger.OnTurnStart);
+            _turnStartPrepared = false;
 
             ProcessNewDeaths();
 

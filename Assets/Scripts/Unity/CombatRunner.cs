@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Game.Core;
 
@@ -20,8 +21,8 @@ public class CombatRunner : MonoBehaviour
     public PlayerInputController PlayerInput;
 
     [Header("Board size")]
-    public int Width = 6;
-    public int Height = 5;
+    public int Width = 8;
+    public int Height = 8;
 
     [Header("Characters (fallback only — used when RunState is null)")]
     public CharacterData PlayerQueenData;
@@ -140,13 +141,15 @@ public class CombatRunner : MonoBehaviour
 
         var board = Board.CreateRectangle(Width, Height);
 
-        var pieces = new[]
+        var pieces = new List<Piece>(32);
+        for (int i = 0; i < 16; i++)
         {
-            PlayerQueenData.CreatePiece("P_Queen", Team.Player, new Axial(0, 0)),
-            PlayerPawnData .CreatePiece("P_Pawn",  Team.Player, new Axial(1, 0)),
-            EnemyQueenData .CreatePiece("E_Queen", Team.Enemy,  new Axial(Width - 1, Height - 1)),
-            EnemyPawnData  .CreatePiece("E_Pawn",  Team.Enemy,  new Axial(Width - 2, Height - 1)),
-        };
+            bool isQueen = i == 0;
+            pieces.Add((isQueen ? PlayerQueenData : PlayerPawnData).CreatePiece(
+                isQueen ? "P_Queen" : $"P_Pawn_{i:00}", Team.Player, PlayerStartCoords(i)));
+            pieces.Add((isQueen ? EnemyQueenData : EnemyPawnData).CreatePiece(
+                isQueen ? "E_Queen" : $"E_Pawn_{i:00}", Team.Enemy, EnemyStartCoords(i)));
+        }
 
         _engine = new CombatEngine(board, pieces);
         WireEventsAndBegin();
@@ -259,10 +262,10 @@ public class CombatRunner : MonoBehaviour
 
     private void OnTurnChanged(Piece current)
     {
-        if (_engine.IsOver || current == null) return;
-        Debug.Log($"-- {current.Name}'s turn ({current.Team}) --");
+        if (_engine.IsOver) return;
+        Debug.Log($"-- {_engine.CurrentTeam}'s action opportunity --");
 
-        bool aiDriven = AutoPlayBothSides || current.Team == Team.Enemy;
+        bool aiDriven = AutoPlayBothSides || _engine.CurrentTeam == Team.Enemy;
         if (aiDriven)
             ScheduleAiTurn(TurnDelay);
         else
@@ -279,9 +282,7 @@ public class CombatRunner : MonoBehaviour
         _aiTurnScheduled = false;
         if (_engine.IsOver) return;
 
-        var current = _engine.Current;
-        if (current == null) return;
-        if (!AutoPlayBothSides && current.Team != Team.Enemy)
+        if (!AutoPlayBothSides && _engine.CurrentTeam != Team.Enemy)
             return;
         if (CombatView != null && CombatView.HasActiveFeedback)
         {
@@ -289,10 +290,34 @@ public class CombatRunner : MonoBehaviour
             return;
         }
 
+        // The active team owns the action opportunity; the AI chooses which
+        // living piece will spend it instead of inheriting a fixed initiative
+        // slot from the previous turn.
+        Team actorTeam = AutoPlayBothSides ? _engine.CurrentTeam : Team.Enemy;
+        var current = ChooseAiActor(actorTeam);
+        if (current == null) return;
+        if (!_engine.SelectPiece(current)) return;
+
         if (_pieceAIs.TryGetValue(current.Id, out var ai) && ai != null)
             ai.TakeTurn(_engine);
         else
             DefaultEnemyAI.TakeTurn(_engine);
+    }
+
+    private Piece ChooseAiActor(Team team)
+    {
+        if (_engine == null) return null;
+        var candidates = new List<Piece>(_engine.AliveOf(team));
+        if (candidates.Count == 0) return null;
+
+        // Prefer a piece that can immediately attack; otherwise use the most
+        // capable piece, with initiative/name as stable tie-breakers.
+        return candidates
+            .OrderByDescending(piece => _engine.GetAttackTargets(piece).Count())
+            .ThenByDescending(piece => piece.EffectiveDamage)
+            .ThenByDescending(piece => piece.Initiative)
+            .ThenBy(piece => piece.Name)
+            .First();
     }
 
     private void ScheduleAiTurn(float delay)
@@ -315,12 +340,12 @@ public class CombatRunner : MonoBehaviour
 
     private Axial PlayerStartCoords(int index)
     {
-        return new Axial(0, index);
+        return new Axial(index % Width, index / Width);
     }
 
     private Axial EnemyStartCoords(int index)
     {
-        return new Axial(Width - 1, index);
+        return new Axial(Width - 1 - (index % Width), Height - 1 - (index / Width));
     }
 
     private bool HasDemoCharacterData()
