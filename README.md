@@ -1,10 +1,10 @@
 # Tactical Prototype
 
-**Tactical Prototype** is a Unity 6 vertical slice for a turn-based tactical roguelite. It combines axial-grid combat, route selection, persistent squad state, post-combat rewards, elite encounters, and a multi-phase boss in one playable run.
+**Tactical Prototype** is a Unity 6 vertical slice for a turn-based tactical roguelite. It combines axial-grid combat with piece-selection turns, route selection, persistent squad state, post-combat rewards, elite encounters, and a multi-phase boss in one playable run.
 
-The project is also an architecture and delivery exercise: gameplay rules live in a Unity-independent `Game.Core` assembly, while scenes, input, UI, data authoring, validation, automated tests, and reproducible Linux builds form the integration layer around it.
+Gameplay rules live in a Unity-independent `Game.Core` assembly. Scenes, input, UI, data authoring, validation, automated tests, and reproducible Linux builds form the integration layer around it.
 
-> **Development status — July 23, 2026:** vertical slice in active development. [Phase 0 is complete](ROADMAP.md#phase-0--reproducible-baseline--complete) and [Phase 1 is in progress](ROADMAP.md#phase-1--combat-clarity--in-progress). The full loop works; audio is deferred to Phase 4 and first-time-player clarity is still being validated.
+> **Development status — July 25, 2026:** vertical slice in active development. Phase 1 is feature-complete (automated regression green) pending manual first-time-player validation. [Phase 2](ROADMAP.md#phase-2--strategic-map) (strategic map) and [Phase 3](ROADMAP.md#phase-3--meaningful-progression) (meaningful progression) are fully verified and closed. Current work is [Phase 4](ROADMAP.md#phase-4--vertical-slice-content) — representative content, onboarding, and final-direction presentation.
 
 ## Play the current loop
 
@@ -12,9 +12,9 @@ The project is also an architecture and delivery exercise: gameplay rules live i
 
 - Unity Editor **6000.0.77f1** — the exact version recorded in [`ProjectSettings/ProjectVersion.txt`](ProjectSettings/ProjectVersion.txt).
 - Unity Hub is recommended for installing that editor version.
-- Linux Build Support is only required for the standalone Linux build workflow.
+- Linux Build Support is required only for the standalone Linux build workflow.
 
-Unity Package Manager restores the committed dependencies when the project opens, including URP, Input System, uGUI, Unity Test Framework, and MCP for Unity.
+Unity Package Manager restores committed dependencies when the project opens, including URP, Input System, uGUI, Unity Test Framework, and MCP for Unity.
 
 ### Quick start
 
@@ -22,9 +22,9 @@ Unity Package Manager restores the committed dependencies when the project opens
 2. Wait for package resolution and script compilation to finish.
 3. Open [`Assets/Scenes/SampleScene.unity`](Assets/Scenes/SampleScene.unity).
 4. Press **Play**.
-5. The bootstrap scene creates a run and loads **Map**. Click an available colored node to continue.
+5. The bootstrap scene creates a run and loads **Map**. Click a colored node to continue to combat.
 
-The playable flow is:
+The playable flow:
 
 ```mermaid
 flowchart LR
@@ -39,39 +39,54 @@ flowchart LR
     Victory -->|Restart| Map
 ```
 
-During a run, HP and acquired upgrades persist across encounters. Available map nodes lead to normal combat, elite combat, rest, or the boss. Shop support remains future scope and is not generated in the vertical slice. A victory presents three reward cards; the selected upgrade is applied to a deterministic alive squad member before the run continues.
+During a run, HP and acquired upgrades persist across encounters. Available map nodes lead to normal combat, elite combat, rest, or the boss. Shop remains future scope and is not generated. A victory presents three reward cards — select a card, then choose which piece receives it before the run continues.
 
 ## Controls
 
-The combat HUD displays these controls and the current legal actions.
+### Combat
+
+Turns alternate between teams. Before acting, click an ally to select it — the action panel and ability buttons appear once a piece is selected.
 
 | Input | Action |
 | --- | --- |
-| Left click | Move to a legal tile, attack a legal target, or confirm an ability target |
+| Left click on ally | Select that piece for the current turn |
+| Left click on tile | Move selected piece to a legal tile |
+| Left click on enemy | Attack a legal target, or confirm an ability target |
 | Ability button or `1`–`9` | Select an active ability |
-| Right click or `Esc` | Cancel ability targeting |
+| Right click or `Esc` | Clear selection or cancel ability targeting |
 | `Space` | Pass the turn |
 | `Enter` | Activate the focused UI control; pass when no submit-capable control is focused |
 | Left or right click during feedback | Fast-forward the active movement, impact, healing, or death feedback |
+| Ctrl + mouse / Ctrl + `Space` | Camera orbit, pan, zoom, and reset (reserved for camera controls) |
 
-Each unit gets **one action per turn**: **move, attack, use an ability, or pass**. A unit cannot move and then attack in the same turn. The click used to skip feedback is consumed; click again to perform the next action.
+Each unit gets **one action per turn**: **move, attack, use an ability, or pass**. A unit cannot move and then attack in the same turn. The click that fast-forwards feedback is consumed and does not pass through to the board or UI.
+
+### Map
+
+| Input | Action |
+| --- | --- |
+| Left click on a colored node | Enter the encounter (combat, elite, rest, or boss) |
 
 ## What is implemented
 
 ### Tactical combat
 
-- Axial-coordinate board, pathfinding, movement range, attack range, initiative-based turns, and queen-death victory conditions.
+- **Explicit piece selection**: turns alternate by team. Click an ally to select it before acting. Selection clears after each action, and the action panel hides until a new piece is chosen.
+- **Team-alternating turn system**: each team's pieces act in descending initiative before switching sides, replacing the old cyclic initiative loop.
+- Axial-coordinate board, pathfinding, movement range, attack range, and queen-death victory conditions.
 - Typed action evaluation and execution for move, attack, ability, and pass actions. The HUD and world highlights use the same Core legality contract.
-- Active and passive abilities with mana, healing, damage, buffs, debuffs, auras, durations, and turn/death triggers.
+- Active and passive abilities with mana, healing, damage, buffs, debuffs, auras, durations, and turn/death triggers. Passing recovers configured mana.
 - Player-facing turn order, HP, mana, ability costs, legal-target highlights, and explicit rejection feedback.
 - Interpolated movement and distinct damage, healing, mana, buff, debuff, passive, and death presentation with click-to-skip input gating.
-- Strategy-based normal, elite, and boss AI. Boss phase mechanics exist in Core with a persistent phase toast presentation.
+- Strategy-based normal, elite, and boss AI. Boss phase mechanics with persistent phase toast presentation.
+- Free-look combat camera with orbit, pan, zoom, and Ctrl+Space reset.
 
 ### Run and progression
 
-- Procedural layered route map with combat, elite, rest, and boss nodes. Shop remains a future node type and is not generated in the vertical slice.
+- Procedural layered route map with combat, elite, rest, and boss nodes. Shop remains a future node type and is not generated.
 - Persistent squad objects across scenes, including HP, bonus stats, and learned abilities.
-- Three deterministic reward choices drawn from stat boosts and active abilities.
+- Three deterministic reward choices drawn from stat boosts and active abilities. Player chooses both the reward card and which piece receives it.
+- Authored reward pools per encounter tier (normal, elite, boss) with reciprocal ability exclusions (e.g., Power Strike and Fireball exclude each other).
 - Normal enemy rosters cycle by cleared-combat index; elite and boss nodes use their dedicated rosters and AI.
 - Victory and defeat outcomes converge on a restartable Game Over scene.
 
@@ -83,7 +98,7 @@ The assembly boundaries keep game rules testable without loading Unity:
 | --- | --- | --- |
 | `Game.Core` | Board, axial coordinates, pathfinding, pieces, turns, actions, abilities, AI, map graph, run state, deterministic random streams | [`Assets/Scripts/Core`](Assets/Scripts/Core) |
 | `Game.Data` | ScriptableObject adapters for characters, abilities, elites, and bosses | [`Assets/Scripts/Unity/Data`](Assets/Scripts/Unity/Data), [`Assets/Data`](Assets/Data) |
-| `Game.Unity` | Scene orchestration, input, HUD, board/piece presentation, map, rewards, and game-over UI | [`Assets/Scripts/Unity`](Assets/Scripts/Unity), [`Assets/Scenes`](Assets/Scenes) |
+| `Game.Unity` | Scene orchestration, input, HUD, board/piece presentation, map, rewards, combat camera, and game-over UI | [`Assets/Scripts/Unity`](Assets/Scripts/Unity), [`Assets/Scenes`](Assets/Scenes) |
 | `Game.Editor` | Baseline validation, scene tooling, and transactional Linux build/smoke automation | [`Assets/Editor`](Assets/Editor) |
 | Tests | Fast domain/integration coverage in EditMode and production-scene behavior in PlayMode | [`Assets/Scripts/Tests/EditMode`](Assets/Scripts/Tests/EditMode), [`Assets/Scripts/Tests/PlayMode`](Assets/Scripts/Tests/PlayMode) |
 
@@ -95,7 +110,7 @@ The required build scene order is validated exactly as:
 SampleScene -> Combat -> Reward -> Map -> GameOver
 ```
 
-This is build-index order, not the runtime transition order shown above.
+This is build-index order, not the runtime transition order shown in the flow diagram above.
 
 ## Validation and tests
 
@@ -127,7 +142,7 @@ mkdir -p Builds/Logs
   -logFile "$PWD/Builds/Logs/playmode-tests.log"
 ```
 
-**Verification snapshot:** the final verified Unity run passed **177/177 EditMode** tests, **31/31 PlayMode** tests, and the focused boss-toast test (**1/1**); the click-to-skip, input, and terminal suites are green. The baseline validator succeeded, and the Unity Console reported zero errors, warnings, or logs. Unity MCP was ready for tools and idle with no compilation, blocking, or stale state. The retained `Builds/Logs/editmode-results.xml` and `Builds/Logs/playmode-results.xml` files are the earlier Phase 0 evidence (**142/142** and **3/3**), not the newer suite snapshot.
+**Latest verified snapshot (Phase 3 closure):** the final verified run passed all **230 EditMode** tests, all **31 PlayMode** tests, and all focused suites. The baseline validator succeeded, and the Unity Console reported zero errors, warnings, or logs. Unity MCP was idle with no compilation, blocking, or stale state.
 
 ## Reproducible Linux build
 
@@ -198,10 +213,11 @@ Ensure `~/.local/bin` is visible to applications launched from the desktop, rest
 
 ## Current limitations
 
-- Phase 1's only remaining closure gate is manual first-time-player usability validation; automated regression is green. Audio cues are intentionally deferred to Phase 4 content polish.
-- Shop support is future scope; Shop nodes are not generated until a transaction is available.
-- Reward recipients are selected automatically; choosing which unit receives an upgrade belongs to Phase 3.
+- Phase 1's only remaining closure gate is manual first-time-player usability validation; automated regression is green.
+- Audio cues are intentionally deferred to Phase 4 content polish.
+- Shop support is future scope; Shop nodes are not generated until a transaction system is available.
 - The map and reward UI are functional but not yet the final vertical-slice presentation.
 - The supported automated standalone workflow currently targets Linux only.
+- The combat camera is functional but does not yet have dedicated on-screen key hints for orbit/pan/zoom.
 
 See [`ROADMAP.md`](ROADMAP.md) for phase outcomes, exit criteria, current evidence, and the immediate work order. Historical feature milestones are recorded in [`CHANGELOG.md`](CHANGELOG.md).
