@@ -389,7 +389,7 @@ namespace Game.Core.Tests
             var ai2 = new BossEnemyAI(boss2, phaseAbility);
 
             engine1.SelectPiece(player); engine1.Pass(); engine1.SelectPiece(boss1);
-            engine2.SelectPiece(player2); engine2.Pass(); engine2.SelectPiece(boss2);
+            engine2.SelectPiece(player); engine2.Pass(); engine2.SelectPiece(boss2);
             ai1.TakeTurn(engine1);
             ai2.TakeTurn(engine2);
 

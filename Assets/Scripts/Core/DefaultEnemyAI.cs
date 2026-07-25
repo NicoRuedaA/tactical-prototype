@@ -3,7 +3,7 @@ using System.Linq;
 namespace Game.Core
 {
     /// <summary>
-    /// Default enemy AI — extracted from the old static EnemyTurnAI.
+    /// Default enemy AI — phase-based: performs ONE action per turn.
     /// Priority: ability → attack → move toward → pass.
     /// No instance state — call via <see cref="TakeTurn"/>.
     /// </summary>
@@ -30,7 +30,7 @@ namespace Game.Core
             // 1) Try active abilities (highest value first).
             if (TryUseAbility(engine, me, foes)) return;
 
-            // 2) Basic attack.
+            // 2) Basic attack if in range.
             var inRange = engine.GetAttackTargets(me).ToList();
             if (inRange.Count > 0)
             {
@@ -42,7 +42,7 @@ namespace Game.Core
                 return;
             }
 
-            // 3) Move toward primary target.
+            // 3) Move toward primary target (ONE action only).
             var primary = foes
                 .OrderByDescending(t => t.IsQueen)
                 .ThenBy(t => Axial.Distance(me.Coords, t.Coords))

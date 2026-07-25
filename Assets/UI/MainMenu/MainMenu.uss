@@ -1,0 +1,52 @@
+/* ── Main Menu Styles ───────────────────────────────────── */
+
+#MenuContainer {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(18, 18, 26);
+}
+
+#CenteredPanel {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+#TitleLabel {
+    font-size: 64px;
+    font-style: bold;
+    -unity-font-style: bold;
+    color: rgb(200, 170, 110);
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
+}
+
+#SubtitleLabel {
+    font-size: 18px;
+    color: rgb(140, 140, 160);
+    margin-bottom: 48px;
+    -unity-text-align: middle-center;
+}
+
+#PlayButton {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: rgb(240, 240, 240);
+    background-color: rgb(160, 100, 60);
+    border-color: rgb(200, 140, 80);
+    border-width: 2px;
+    border-radius: 8px;
+    padding: 12px 48px;
+    min-width: 200px;
+    transition: background-color 0.2s;
+}
+
+#PlayButton:hover {
+    background-color: rgb(190, 120, 70);
+}
+
+#PlayButton:active {
+    background-color: rgb(130, 80, 50);
+}

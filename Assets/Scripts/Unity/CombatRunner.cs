@@ -260,10 +260,12 @@ public class CombatRunner : MonoBehaviour
 
     // ── Turn handling ─────────────────────────────────────────────────────────
 
+    private int _enemyActorIndex = 0; // Tracks which enemy piece acts next in phase-based system
+
     private void OnTurnChanged(Piece current)
     {
         if (_engine.IsOver) return;
-        Debug.Log($"-- {_engine.CurrentTeam}'s action opportunity --");
+        Debug.Log($"-- {_engine.CurrentTeam}'s phase --");
 
         bool aiDriven = AutoPlayBothSides || _engine.CurrentTeam == Team.Enemy;
         if (aiDriven)
@@ -290,18 +292,25 @@ public class CombatRunner : MonoBehaviour
             return;
         }
 
-        // The active team owns the action opportunity; the AI chooses which
-        // living piece will spend it instead of inheriting a fixed initiative
-        // slot from the previous turn.
+        // Phase-based system: AI chooses which piece acts in this phase
         Team actorTeam = AutoPlayBothSides ? _engine.CurrentTeam : Team.Enemy;
         var current = ChooseAiActor(actorTeam);
         if (current == null) return;
         if (!_engine.SelectPiece(current)) return;
 
+        // Diagnostic: log AI state before dispatching
+        var moveRange = _engine.GetMoveRange(current);
+        var reachable = moveRange.ReachableTiles.ToList();
+        var attackTargets = _engine.GetAttackTargets(current).ToList();
+        Debug.Log($"[AI DEBUG] Piece={current.Name}({current.Id}) at {current.Coords} team={current.Team} moveRange={current.EffectiveMoveRange} atkRange={current.EffectiveAttackRange} reachable={reachable.Count} atkTargets={attackTargets.Count} aliveEnemies={_engine.AliveOf(Team.Enemy).Count()} alivePlayers={_engine.AliveOf(Team.Player).Count()} boardSize={_engine.Board.Tiles.Count()}");
+
         if (_pieceAIs.TryGetValue(current.Id, out var ai) && ai != null)
             ai.TakeTurn(_engine);
         else
             DefaultEnemyAI.TakeTurn(_engine);
+
+        // Diagnostic: log after AI action
+        Debug.Log($"[AI DEBUG] After action: CurrentTeam={_engine.CurrentTeam} IsOver={_engine.IsOver} TurnCount={_engine.TurnCount}");
     }
 
     private Piece ChooseAiActor(Team team)
@@ -310,14 +319,25 @@ public class CombatRunner : MonoBehaviour
         var candidates = new List<Piece>(_engine.AliveOf(team));
         if (candidates.Count == 0) return null;
 
-        // Prefer a piece that can immediately attack; otherwise use the most
-        // capable piece, with initiative/name as stable tie-breakers.
-        return candidates
-            .OrderByDescending(piece => _engine.GetAttackTargets(piece).Count())
-            .ThenByDescending(piece => piece.EffectiveDamage)
-            .ThenByDescending(piece => piece.Initiative)
-            .ThenBy(piece => piece.Name)
-            .First();
+        // Phase-based rotation: cycle through pieces so all get a turn
+        // Prefer pieces that can attack, then rotate through others
+        var attackers = candidates
+            .Where(p => _engine.GetAttackTargets(p).Any())
+            .OrderByDescending(p => p.EffectiveDamage)
+            .ToList();
+
+        if (attackers.Count > 0)
+        {
+            // Use the attacker at current index, then advance
+            int idx = _enemyActorIndex % attackers.Count;
+            _enemyActorIndex++;
+            return attackers[idx];
+        }
+
+        // No attackers: rotate through all pieces
+        int nonAttackIdx = _enemyActorIndex % candidates.Count;
+        _enemyActorIndex++;
+        return candidates[nonAttackIdx];
     }
 
     private void ScheduleAiTurn(float delay)

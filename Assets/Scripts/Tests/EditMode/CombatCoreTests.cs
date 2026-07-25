@@ -40,29 +40,44 @@ namespace Game.Core.Tests
         // ── Turn order ───────────────────────────────────────────────────────
 
         [Test]
-        public void TurnOrder_AlternatesTeamsAndPreservesInitiativeWithinEachTeam()
+        public void TurnOrder_AlternatesBetweenTeamsInPhases()
         {
-            var playerFast = new Piece("playerFast", Team.Player, 5, 1, 1, 1, 10);
-            var playerSlow = new Piece("playerSlow", Team.Player, 5, 1, 1, 1, 6);
-            var enemyFast = new Piece("enemyFast", Team.Enemy, 5, 1, 1, 1, 9);
-            var enemySlow = new Piece("enemySlow", Team.Enemy, 5, 1, 1, 1, 5);
-            var turns = new TurnSystem(new[] { playerSlow, enemySlow, enemyFast, playerFast });
+            // Phase-based system: teams alternate, player chooses which piece acts
+            var playerA = new Piece("playerA", Team.Player, 5, 1, 1, 1, 10);
+            var playerB = new Piece("playerB", Team.Player, 5, 1, 1, 1, 6);
+            var enemyA = new Piece("enemyA", Team.Enemy, 5, 1, 1, 1, 9);
+            var enemyB = new Piece("enemyB", Team.Enemy, 5, 1, 1, 1, 5);
+            var turns = new TurnSystem(new[] { playerA, enemyA, playerB, enemyB });
 
-            CollectionAssert.AreEqual(
-                new[] { playerFast, enemyFast, playerSlow, enemySlow }, turns.Order);
+            // Initial state: Player's phase
+            Assert.AreEqual(Team.Player, turns.CurrentTeam);
             Assert.IsNull(turns.Current);
-            Assert.IsTrue(turns.Select(playerFast));
-            Assert.AreEqual(playerFast, turns.Current);
+
+            // Player chooses playerA for this phase
+            Assert.IsTrue(turns.Select(playerA));
+            Assert.AreEqual(playerA, turns.Current);
             turns.Advance();
-            Assert.IsTrue(turns.Select(enemyFast));
-            Assert.AreEqual(enemyFast, turns.Current);
+
+            // Now Enemy's phase
+            Assert.AreEqual(Team.Enemy, turns.CurrentTeam);
+            Assert.IsNull(turns.Current);
+
+            // Enemy chooses enemyB for this phase (can pick any living piece)
+            Assert.IsTrue(turns.Select(enemyB));
+            Assert.AreEqual(enemyB, turns.Current);
             turns.Advance();
-            Assert.IsTrue(turns.Select(playerSlow));
-            Assert.AreEqual(playerSlow, turns.Current);
+
+            // Back to Player's phase
+            Assert.AreEqual(Team.Player, turns.CurrentTeam);
+            Assert.IsNull(turns.Current);
+
+            // Player chooses playerB
+            Assert.IsTrue(turns.Select(playerB));
+            Assert.AreEqual(playerB, turns.Current);
             turns.Advance();
-            Assert.IsTrue(turns.Select(enemySlow));
-            Assert.AreEqual(enemySlow, turns.Current);
-            turns.Advance();
+
+            // Enemy's phase again
+            Assert.AreEqual(Team.Enemy, turns.CurrentTeam);
             Assert.IsNull(turns.Current);
         }
 

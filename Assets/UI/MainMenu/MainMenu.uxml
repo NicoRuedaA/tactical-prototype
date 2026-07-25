@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:Style src="MainMenu.uss" />
+    <ui:VisualElement name="MenuContainer">
+        <ui:VisualElement name="CenteredPanel">
+            <ui:Label text="TACTICAL ROGUE" name="TitleLabel" />
+            <ui:Label text="Un roguelite táctico por turnos" name="SubtitleLabel" />
+            <ui:Button text="JUGAR" name="PlayButton" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
