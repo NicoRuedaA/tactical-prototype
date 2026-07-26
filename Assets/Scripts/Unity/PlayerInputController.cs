@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
+using UnityEngine.UIElements;
 using UnityEngine.InputSystem;
-using UnityEngine.UI;
 using Game.Core;
 
 public class PlayerInputController : MonoBehaviour
@@ -182,9 +181,7 @@ public class PlayerInputController : MonoBehaviour
             || Keyboard.current.escapeKey.wasPressedThisFrame)
             CancelAbility();
 
-        // Space is a dedicated Pass shortcut in this project. Ctrl+Space is
-        // reserved for the combat camera reset, while Enter remains the uGUI
-        // Submit key and yields when a selectable control has focus.
+        // Space is a dedicated Pass shortcut. Enter yields to focused Toolkit UI.
         if (!IsCameraModifierHeld() && Keyboard.current.spaceKey.wasPressedThisFrame)
             TryPassFromKeyboard(false);
         else if (Keyboard.current.enterKey.wasPressedThisFrame)
@@ -217,7 +214,9 @@ public class PlayerInputController : MonoBehaviour
         if (IsPointerOverUi())
             return false;
 
-        RestoreSelectionHighlights();
+        // Start each world click from a clean visual state. Repainting the old
+        // selection here makes highlights accumulate when selecting another unit.
+        CombatView?.ClearHighlights();
 
         Ray ray = TargetCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
@@ -251,6 +250,9 @@ public class PlayerInputController : MonoBehaviour
             ClearSelection();
             return false;
         }
+
+        if (clickedPiece != null && !clickedPiece.IsDead)
+            CombatHud?.ShowPieceInspector(clickedPiece);
 
         // A player chooses the actor explicitly each turn. Clicking another
         // living ally changes the selection; clicking an empty area cancels it.
@@ -332,8 +334,7 @@ public class PlayerInputController : MonoBehaviour
     }
 
     /// <summary>
-    /// Handles a keyboard pass shortcut. Submit-bound keys yield to the focused
-    /// uGUI control; dedicated shortcuts pass regardless of UI selection.
+    /// Handles a keyboard pass shortcut. Enter yields to focused Toolkit UI.
     /// </summary>
     private bool TryPassFromKeyboard(bool isUiSubmitKey)
     {
@@ -346,40 +347,28 @@ public class PlayerInputController : MonoBehaviour
 
     public bool IsPointerOverUi()
     {
-        EventSystem eventSystem = EventSystem.current;
-        if (eventSystem == null)
-            return false;
-        if (eventSystem.IsPointerOverGameObject())
-            return true;
         if (Mouse.current == null)
             return false;
-
-        // InputSystemUIInputModule may update its cached pointer after this
-        // component's Update. Raycast the same current position as a deterministic
-        // fallback so world input never leaks through UI for one frame.
-        var pointer = new PointerEventData(eventSystem)
+        Vector2 position = Mouse.current.position.ReadValue();
+        foreach (var document in FindObjectsByType<UIDocument>(FindObjectsSortMode.None))
         {
-            position = Mouse.current.position.ReadValue(),
-        };
-        var results = new List<RaycastResult>();
-        eventSystem.RaycastAll(pointer, results);
-        return results.Count > 0;
+            if (document.panelSettings == null || document.rootVisualElement.panel == null)
+                continue;
+            if (document.rootVisualElement.panel.Pick(position) != null)
+                return true;
+        }
+        return false;
     }
 
     private static bool HasActiveUiSubmitTarget()
     {
-        EventSystem eventSystem = EventSystem.current;
-        GameObject selected = eventSystem != null
-            ? eventSystem.currentSelectedGameObject
-            : null;
-        if (selected == null)
-            return false;
-
-        Selectable selectable = selected.GetComponentInParent<Selectable>();
-        return selectable != null
-               && selectable.IsActive()
-               && selectable.IsInteractable()
-               && ExecuteEvents.GetEventHandler<ISubmitHandler>(selected) != null;
+        foreach (var document in FindObjectsByType<UIDocument>(FindObjectsSortMode.None))
+        {
+            var focused = document.rootVisualElement.panel?.focusController?.focusedElement;
+            if (focused is UnityEngine.UIElements.Button button && button.enabledInHierarchy && button.enabledSelf)
+                return true;
+        }
+        return false;
     }
 
     private void SelectAbilityAtIndex(int index)
@@ -462,6 +451,7 @@ public class PlayerInputController : MonoBehaviour
         _selectedAbility = null;
         _abilityTargetCoords.Clear();
         ClearHighlights();
+        CombatHud?.HidePieceInspector();
         RefreshHud();
     }
 

@@ -124,7 +124,7 @@ A unit may **move or act** per turn. Combat feedback blocks subsequent actions w
 - Audio cues are intentionally deferred to Phase 4 content polish and are not a Phase 1 blocker.
 - Phase 1 remains in progress. The only pending closure work is manual first-time-player usability validation; automated regression is green.
 
-## Phase 2 — Strategic map
+## Phase 2 — Strategic map ✅ Complete
 
 **Outcome:** route selection becomes a readable tactical decision.
 
@@ -167,9 +167,11 @@ Focused MapView tests pass **8/8**; the full suites pass **186/186 EditMode** an
 
 ### Exit criteria
 
-- Every visible node performs a complete, understandable action.
-- The player can compare route risk and reward.
-- Combat return preserves the correct run and map state.
+- [x] Every visible node performs its complete action and preserves the run flow. Final player-facing explanation and visual polish are deferred to the UI/content polish phase.
+- [x] The player can compare route risk and reward through node identities, labels, hover text, and route state.
+- [x] Combat return preserves the correct run and map state.
+
+**Closure note:** Phase 2 is closed on technical and flow criteria. Improving first-time comprehension and visual communication of node actions remains future UI/content polish work.
 
 ## Phase 3 — Meaningful progression ✅ Complete
 

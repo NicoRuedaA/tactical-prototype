@@ -6,8 +6,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
+using UnityEngine.UIElements;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -209,7 +208,6 @@ public sealed class ProjectBaselineValidator : IPreprocessBuildWithReport
         RequireSingle(views, scene.name, nameof(CombatView), errors);
         RequireSingle(inputs, scene.name, nameof(PlayerInputController), errors);
         RequireSingle(huds, scene.name, nameof(CombatHudView), errors);
-        ValidateInputSystemEvent(scene, errors);
         if (runners.Count != 1 || views.Count != 1 || inputs.Count != 1 || huds.Count != 1)
             return;
 
@@ -243,44 +241,25 @@ public sealed class ProjectBaselineValidator : IPreprocessBuildWithReport
     private static void ValidateMapScene(Scene scene, List<string> errors)
     {
         RequireSingle(FindInScene<MapView>(scene), scene.name, nameof(MapView), errors);
-        ValidateInputSystemEvent(scene, errors);
-
-        // MapView intentionally supports null prefab/content references by creating
-        // runtime buttons and a Canvas. LineRendererPrefab is optional.
+        RequireSingle(FindInScene<UIDocument>(scene), scene.name, nameof(UIDocument), errors);
     }
 
     private static void ValidateRewardScene(Scene scene, List<string> errors)
     {
         var screens = FindInScene<RewardScreen>(scene);
         RequireSingle(screens, scene.name, nameof(RewardScreen), errors);
-        ValidateInputSystemEvent(scene, errors);
-
         if (screens.Count != 1)
             return;
-
-        var screen = screens[0];
-        if (screen.TitleText == null ||
-            screen.CardButton0 == null || screen.CardButton1 == null || screen.CardButton2 == null ||
-            screen.CardText0 == null || screen.CardText1 == null || screen.CardText2 == null)
-            errors.Add("Reward RewardScreen is missing one or more required UI references.");
+        if (screens[0].GetComponent<UIDocument>() == null)
+            errors.Add("Reward RewardScreen must have a UI Toolkit UIDocument.");
     }
 
     private static void ValidateGameOverScene(Scene scene, List<string> errors)
     {
         var screens = FindInScene<DefeatScreen>(scene);
         RequireSingle(screens, scene.name, nameof(DefeatScreen), errors);
-        ValidateInputSystemEvent(scene, errors);
-
-        if (screens.Count == 1 && (screens[0].TitleText == null || screens[0].MainMenuButton == null))
-            errors.Add("GameOver DefeatScreen must reference its title and restart button.");
-    }
-
-    private static void ValidateInputSystemEvent(Scene scene, List<string> errors)
-    {
-        if (FindInScene<EventSystem>(scene).Count != 1)
-            errors.Add($"{scene.name} must contain exactly one EventSystem.");
-        if (FindInScene<InputSystemUIInputModule>(scene).Count != 1)
-            errors.Add($"{scene.name} must contain exactly one InputSystemUIInputModule.");
+        if (screens.Count == 1 && screens[0].GetComponent<UIDocument>() == null)
+            errors.Add("GameOver DefeatScreen must have a UI Toolkit UIDocument.");
     }
 
     private static void ValidateCharacterArray(CharacterData[] characters, string label, List<string> errors)

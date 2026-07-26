@@ -61,6 +61,9 @@ public class CombatView : MonoBehaviour
     [Min(0f)] public float FloatingTextDuration = 0.7f;
     public bool CompleteAnimationsImmediately;
 
+    [Tooltip("Raises piece visuals above the board surface. Piece.prefab uses a centered 2-unit body.")]
+    [Min(0f)] public float PieceVerticalOffset = 1f;
+
     private CombatEngine _engine;
     private readonly Dictionary<Axial, TileView> _tileViews = new();
     private readonly Dictionary<Piece, PieceView> _pieceViews = new();
@@ -169,7 +172,7 @@ public class CombatView : MonoBehaviour
 
             GameObject instance = Instantiate(
                 PiecePrefab,
-                HexLayout.AxialToWorld(piece.Coords),
+                PieceWorldPosition(piece.Coords),
                 Quaternion.identity,
                 PiecesRoot);
             instance.name = piece.Name;
@@ -304,7 +307,12 @@ public class CombatView : MonoBehaviour
     private void OnPieceMoved(Piece piece, Axial from, Axial to)
     {
         if (_pieceViews.TryGetValue(piece, out PieceView view) && view != null)
-            view.OnMove(HexLayout.AxialToWorld(to));
+            view.OnMove(PieceWorldPosition(to));
+    }
+
+    private Vector3 PieceWorldPosition(Axial coord)
+    {
+        return HexLayout.AxialToWorld(coord) + Vector3.up * PieceVerticalOffset;
     }
 
     private void OnAttackResolved(AttackResolution resolution)

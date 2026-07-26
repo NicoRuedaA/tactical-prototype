@@ -1,10 +1,4 @@
-using UnityEngine.EventSystems;
-
-/// <summary>
-/// Pointer feedback bridge for a map node button. The map owns navigation and
-/// this component only forwards hover events so the button remains reusable.
-/// </summary>
-public sealed class MapNodeView : UnityEngine.MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public sealed class MapNodeView : UnityEngine.MonoBehaviour
 {
     private MapView _owner;
 
@@ -16,13 +10,4 @@ public sealed class MapNodeView : UnityEngine.MonoBehaviour, IPointerEnterHandle
         NodeId = nodeId;
     }
 
-    public void OnPointerEnter(PointerEventData eventData)
-    {
-        _owner?.OnNodePointerEntered(NodeId);
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        _owner?.OnNodePointerExited(NodeId);
-    }
 }

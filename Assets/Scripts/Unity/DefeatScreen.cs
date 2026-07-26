@@ -1,42 +1,39 @@
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.UIElements;
 
-/// <summary>
-/// Displays the run outcome (VICTORY or DEFEAT) on the GameOver scene.
-/// Follows the <see cref="RewardScreen"/> pattern: finds <see cref="RunManager.Instance"/>
-/// on OnEnable to read the outcome, and provides a button to return to the main menu.
-/// </summary>
-public class DefeatScreen : MonoBehaviour
+public sealed class DefeatScreen : MonoBehaviour
 {
-    [Header("UI References")]
-    [Tooltip("Text element that displays VICTORY or DEFEAT.")]
-    public Text TitleText;
-
-    [Tooltip("Button that starts a fresh run.")]
-    public Button MainMenuButton;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    public UIDocument Document;
+    private UIDocument _document;
+    private Label _title;
 
     private void OnEnable()
     {
+        BuildUi();
         var mgr = RunManager.Instance;
-
-        if (TitleText != null)
-        {
-            if (mgr != null)
-                TitleText.text = mgr.LastRunWasVictory ? "VICTORY" : "DEFEAT";
-            else
-                TitleText.text = "GAME OVER";
-        }
-
-        if (MainMenuButton != null)
-        {
-            MainMenuButton.onClick.RemoveAllListeners();
-            MainMenuButton.onClick.AddListener(OnMainMenuClicked);
-        }
+        _title.text = mgr == null ? "GAME OVER" : (mgr.LastRunWasVictory ? "VICTORY" : "DEFEAT");
     }
 
-    // ── Button handlers ───────────────────────────────────────────────────────
+    private void BuildUi()
+    {
+        _document = Document != null ? Document : GetComponent<UIDocument>() ?? gameObject.AddComponent<UIDocument>();
+        Document = _document;
+        _document.panelSettings ??= ScriptableObject.CreateInstance<PanelSettings>();
+        var root = _document.rootVisualElement;
+        root.Clear();
+        root.style.flexGrow = 1;
+        root.style.alignItems = Align.Center;
+        root.style.justifyContent = Justify.Center;
+
+        _title = new Label { name = "Title", text = "GAME OVER" };
+        _title.style.fontSize = 48;
+        _title.style.unityFontStyleAndWeight = FontStyle.Bold;
+        root.Add(_title);
+
+        var mainMenu = new Button(OnMainMenuClicked) { name = "MainMenuButton", text = "MAIN MENU" };
+        mainMenu.style.marginTop = 24;
+        root.Add(mainMenu);
+    }
 
     private void OnMainMenuClicked()
     {
@@ -46,7 +43,6 @@ public class DefeatScreen : MonoBehaviour
             Debug.LogError("DefeatScreen: Cannot restart because RunManager.Instance is missing.");
             return;
         }
-
         mgr.RestartRun();
     }
 }

@@ -298,19 +298,10 @@ public class CombatRunner : MonoBehaviour
         if (current == null) return;
         if (!_engine.SelectPiece(current)) return;
 
-        // Diagnostic: log AI state before dispatching
-        var moveRange = _engine.GetMoveRange(current);
-        var reachable = moveRange.ReachableTiles.ToList();
-        var attackTargets = _engine.GetAttackTargets(current).ToList();
-        Debug.Log($"[AI DEBUG] Piece={current.Name}({current.Id}) at {current.Coords} team={current.Team} moveRange={current.EffectiveMoveRange} atkRange={current.EffectiveAttackRange} reachable={reachable.Count} atkTargets={attackTargets.Count} aliveEnemies={_engine.AliveOf(Team.Enemy).Count()} alivePlayers={_engine.AliveOf(Team.Player).Count()} boardSize={_engine.Board.Tiles.Count()}");
-
         if (_pieceAIs.TryGetValue(current.Id, out var ai) && ai != null)
             ai.TakeTurn(_engine);
         else
             DefaultEnemyAI.TakeTurn(_engine);
-
-        // Diagnostic: log after AI action
-        Debug.Log($"[AI DEBUG] After action: CurrentTeam={_engine.CurrentTeam} IsOver={_engine.IsOver} TurnCount={_engine.TurnCount}");
     }
 
     private Piece ChooseAiActor(Team team)
@@ -334,10 +325,24 @@ public class CombatRunner : MonoBehaviour
             return attackers[idx];
         }
 
-        // No attackers: rotate through all pieces
-        int nonAttackIdx = _enemyActorIndex % candidates.Count;
+        // The starting formation occupies two complete rows. Pieces on the
+        // outer row can therefore be completely boxed in by allied units.
+        // Skip those actors while another piece has a legal move; otherwise
+        // the AI burns its phase passing even though the formation can advance.
+        var movable = candidates
+            .Where(p => _engine.GetMoveRange(p).ReachableTiles.Any())
+            .ToList();
+        if (movable.Count > 0)
+        {
+            int movableIdx = _enemyActorIndex % movable.Count;
+            _enemyActorIndex++;
+            return movable[movableIdx];
+        }
+
+        // No actor can move or attack: select one so DefaultEnemyAI can pass.
+        int blockedIdx = _enemyActorIndex % candidates.Count;
         _enemyActorIndex++;
-        return candidates[nonAttackIdx];
+        return candidates[blockedIdx];
     }
 
     private void ScheduleAiTurn(float delay)

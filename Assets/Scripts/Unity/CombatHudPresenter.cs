@@ -55,27 +55,14 @@ public sealed class CombatHudPresenter
             ? "HP —  |  Mana —"
             : $"HP {current.Hp}/{current.EffectiveMaxHp}  |  Mana {current.Mana}/{current.MaxMana}";
 
-        var aliveTurnOrder = engine.Turns.Order
-            .Where(piece => !piece.IsDead)
-            .ToList();
-        int currentIndex = aliveTurnOrder.IndexOf(current);
-        if (currentIndex > 0)
-        {
-            aliveTurnOrder = aliveTurnOrder
-                .Skip(currentIndex)
-                .Concat(aliveTurnOrder.Take(currentIndex))
-                .ToList();
-        }
-
-        string turnOrder = string.Join("  ›  ", aliveTurnOrder
-            .Select((piece, index) => index == 0 && piece == current
-                ? $"▶ {piece.Name}"
-                : piece.Name));
+        int playerCount = engine.AliveOf(Team.Player).Count();
+        int enemyCount = engine.AliveOf(Team.Enemy).Count();
+        string turnOrder = $"Phase: {engine.CurrentTeam.ToString().ToUpperInvariant()}  |  Player {playerCount}  Enemy {enemyCount}";
 
         return new CombatHudState(
             activeUnit,
             resources,
-            $"Turn order: {turnOrder}",
+            turnOrder,
             ActionRule,
             Controls,
             isPlayerTurn && selected != null,
