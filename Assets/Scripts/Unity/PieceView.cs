@@ -205,6 +205,24 @@ public class PieceView : MonoBehaviour
             _renderer.sharedMaterial = material;
     }
 
+    public void AssignMaterial(Material material, Color? tint)
+    {
+        if (_renderer == null || material == null)
+            return;
+        if (!tint.HasValue)
+        {
+            _renderer.sharedMaterial = material;
+            return;
+        }
+
+        var instance = new Material(material);
+        if (instance.HasProperty("_BaseColor"))
+            instance.SetColor("_BaseColor", tint.Value);
+        if (instance.HasProperty("_Color"))
+            instance.SetColor("_Color", tint.Value);
+        _renderer.sharedMaterial = instance;
+    }
+
     public void ConfigureHighlight(
         GameObject indicatorPrefab,
         Material selectedMaterial,

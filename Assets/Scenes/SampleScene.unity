@@ -488,7 +488,7 @@ MonoBehaviour:
   enemyTeamPools:
   - nodeType: 0
     enemies:
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+    - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
@@ -559,7 +559,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   EnemyTeamCombat0:
-  - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}

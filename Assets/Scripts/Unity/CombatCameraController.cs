@@ -133,7 +133,7 @@ private void HandleRotation()
     {
         Keyboard keyboard = Keyboard.current;
         return keyboard != null
-               && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed)
-               && (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed);
+               && ((keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed)
+                   || (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed));
     }
 }

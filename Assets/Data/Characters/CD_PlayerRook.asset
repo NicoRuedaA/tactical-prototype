@@ -10,20 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ec9d07a5884f0e74fbe535e2d8bd5793, type: 3}
-  m_Name: CD_PlayerQueen
+  m_Name: CD_PlayerRook
   m_EditorClassIdentifier: 
-  displayName: Player Queen
+  displayName: Player Rook
   icon: {fileID: 0}
-  maxHp: 15
-  maxMana: 6
-  damage: 3
-  attackRange: 1
-  moveRange: 3
-  initiative: 12
-  isQueen: 1
-  abilities:
-  - {fileID: 11400000, guid: 992a2305f8784eb459b957a12f8bc1e6, type: 2}
-  - {fileID: 11400000, guid: d3da56823a3ee1548a8b102e76d88f4a, type: 2}
-  - {fileID: 11400000, guid: c9e5e168fb514ca48a471e6e5c72b597, type: 2}
   modelPrefab: {fileID: 4600942368496227752, guid: a9ea875e91cc2364e9bacc6cf2eb8f4e, type: 3}
   modelMaterial: {fileID: 2100000, guid: 0aa126aede5dfdc419b546d6350fb4e3, type: 2}
+  modelTint: {r: 0.25, g: 0.75, b: 1, a: 1}
+  useModelTint: 1
+  maxHp: 10
+  maxMana: 0
+  damage: 3
+  attackRange: 2
+  moveRange: 3
+  initiative: 7
+  isQueen: 0
+  abilities: []

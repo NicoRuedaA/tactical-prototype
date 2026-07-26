@@ -90,6 +90,8 @@ public class CombatRunner : MonoBehaviour
         {
             playerPiece.Coords = PlayerStartCoords(idx);
             pieces.Add(playerPiece);
+            if (RunManager.Instance.PlayerTeam != null && idx < RunManager.Instance.PlayerTeam.Length)
+                CombatView.SetPieceDefinition(playerPiece, RunManager.Instance.PlayerTeam[idx]);
             idx++;
         }
 
@@ -117,6 +119,7 @@ public class CombatRunner : MonoBehaviour
                 _pieceAIs[enemy.Id] = ai;
 
             pieces.Add(enemy);
+            CombatView.SetPieceDefinition(enemy, data);
         }
 
         _engine = new CombatEngine(board, pieces);
@@ -145,10 +148,16 @@ public class CombatRunner : MonoBehaviour
         for (int i = 0; i < 16; i++)
         {
             bool isQueen = i == 0;
-            pieces.Add((isQueen ? PlayerQueenData : PlayerPawnData).CreatePiece(
-                isQueen ? "P_Queen" : $"P_Pawn_{i:00}", Team.Player, PlayerStartCoords(i)));
-            pieces.Add((isQueen ? EnemyQueenData : EnemyPawnData).CreatePiece(
-                isQueen ? "E_Queen" : $"E_Pawn_{i:00}", Team.Enemy, EnemyStartCoords(i)));
+            var playerData = isQueen ? PlayerQueenData : PlayerPawnData;
+            var playerPiece = playerData.CreatePiece(
+                isQueen ? "P_Queen" : $"P_Pawn_{i:00}", Team.Player, PlayerStartCoords(i));
+            var enemyData = isQueen ? EnemyQueenData : EnemyPawnData;
+            var enemyPiece = enemyData.CreatePiece(
+                isQueen ? "E_Queen" : $"E_Pawn_{i:00}", Team.Enemy, EnemyStartCoords(i));
+            pieces.Add(playerPiece);
+            pieces.Add(enemyPiece);
+            CombatView.SetPieceDefinition(playerPiece, playerData);
+            CombatView.SetPieceDefinition(enemyPiece, enemyData);
         }
 
         _engine = new CombatEngine(board, pieces);

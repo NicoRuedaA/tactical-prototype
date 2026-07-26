@@ -6,23 +6,22 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ec9d07a5884f0e74fbe535e2d8bd5793, type: 3}
-  m_Name: CD_EnemyPawn
+  m_Name: CD_EnemyKnight
   m_EditorClassIdentifier: 
-  displayName: Enemy Pawn
+  displayName: Enemy Knight
   icon: {fileID: 0}
-  maxHp: 8
-  maxMana: 4
-  damage: 2
-  attackRange: 1
-  moveRange: 3
-  initiative: 6
-  isQueen: 0
-  abilities:
-  - {fileID: 11400000, guid: 65ccf0b4af679b54dbfb56360a78ce4d, type: 2}
-  - {fileID: 11400000, guid: af35d50ae798f1e4295c5a06b0545fa3, type: 2}
   modelPrefab: {fileID: 4600942368496227752, guid: a9ea875e91cc2364e9bacc6cf2eb8f4e, type: 3}
   modelMaterial: {fileID: 2100000, guid: 405c35ecdf1bfe44e90808f3f0c07da2, type: 2}
+  modelTint: {r: 0.65, g: 0.3, b: 0.12, a: 1}
+  useModelTint: 1
+  maxHp: 9
+  maxMana: 0
+  damage: 3
+  attackRange: 1
+  moveRange: 4
+  initiative: 9
+  isQueen: 0
+  abilities: []

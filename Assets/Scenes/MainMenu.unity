@@ -165,13 +165,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PlayerTeam:
   - {fileID: 11400000, guid: 3f3aaad6bf0cae6428e999c9f05754c2, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
-  - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
+  - {fileID: 11400000, guid: 6d4e3c1a9f0b4a8db7c2e1f5a6d8c903, type: 2}
+  - {fileID: 11400000, guid: 9a1f7c2e4b6d8f03a5c7e9b1d3f6a802, type: 2}
+  - {fileID: 11400000, guid: 9a1f7c2e4b6d8f03a5c7e9b1d3f6a802, type: 2}
+  - {fileID: 11400000, guid: 2b7e5d1a9c3f4b608d2e6a8f0c1b7e94, type: 2}
+  - {fileID: 11400000, guid: 2b7e5d1a9c3f4b608d2e6a8f0c1b7e94, type: 2}
+  - {fileID: 11400000, guid: 4c8a2e6f1b9d3a705e7c0f2d8b6a1e53, type: 2}
+  - {fileID: 11400000, guid: 4c8a2e6f1b9d3a705e7c0f2d8b6a1e53, type: 2}
   - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
   - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
   - {fileID: 11400000, guid: 719107ccf349fdb4b92525a9e934b120, type: 2}
@@ -183,14 +183,14 @@ MonoBehaviour:
   enemyTeamPools:
   - nodeType: 0
     enemies:
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
-    - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+    - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
+    - {fileID: 11400000, guid: 7f2b4d9a1c6e8b305a0d3f5c7e9a2b14, type: 2}
+    - {fileID: 11400000, guid: 8e3a1c5f7b9d2a604d6f0b2e4c8a1d73, type: 2}
+    - {fileID: 11400000, guid: 8e3a1c5f7b9d2a604d6f0b2e4c8a1d73, type: 2}
+    - {fileID: 11400000, guid: 1a6d8f3c5b7e9d204c2f0a8b6e4d1c75, type: 2}
+    - {fileID: 11400000, guid: 1a6d8f3c5b7e9d204c2f0a8b6e4d1c75, type: 2}
+    - {fileID: 11400000, guid: 3f7b1d9a5c2e8a604b6d0f4c1e9a7d25, type: 2}
+    - {fileID: 11400000, guid: 3f7b1d9a5c2e8a604b6d0f4c1e9a7d25, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
@@ -254,7 +254,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
     - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   EnemyTeamCombat0:
-  - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
+  - {fileID: 11400000, guid: 219baaf2b673df343be43e77f2c33bdd, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}
   - {fileID: 11400000, guid: b5f3c5936a5f8824d88d3bead7cd8eb5, type: 2}

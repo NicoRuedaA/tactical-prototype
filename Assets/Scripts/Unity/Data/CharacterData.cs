@@ -13,6 +13,12 @@ public class CharacterData : ScriptableObject
     public string displayName = "Character";
     public Sprite icon;
 
+    [Header("Visuals")]
+    public GameObject modelPrefab;
+    public Material modelMaterial;
+    public Color modelTint = Color.white;
+    public bool useModelTint;
+
     [Header("Stats")]
     public int  maxHp      = 5;
     public int  maxMana    = 0;

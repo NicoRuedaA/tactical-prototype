@@ -37,6 +37,8 @@ public class CombatView : MonoBehaviour
     [Header("Prefabs")]
     public GameObject TilePrefab;
     public GameObject PiecePrefab;
+    public Material QueenMaterial;
+    public Color QueenColor = new Color(1f, 0.72f, 0.12f, 1f);
 
     [Header("Tile Materials")]
     public Material TileNormal;
@@ -67,6 +69,7 @@ public class CombatView : MonoBehaviour
     private CombatEngine _engine;
     private readonly Dictionary<Axial, TileView> _tileViews = new();
     private readonly Dictionary<Piece, PieceView> _pieceViews = new();
+    private readonly Dictionary<Piece, CharacterData> _pieceDefinitions = new();
     private readonly HashSet<Piece> _dyingPieces = new();
     private readonly Queue<CombatFeedbackPopup> _popupPool = new();
     private readonly HashSet<CombatFeedbackPopup> _activePopups = new();
@@ -98,6 +101,16 @@ public class CombatView : MonoBehaviour
         Subscribe();
         BuildBoard();
         BuildPieces();
+    }
+
+    public void SetPieceDefinition(Piece piece, CharacterData definition)
+    {
+        if (piece == null)
+            return;
+        if (definition == null)
+            _pieceDefinitions.Remove(piece);
+        else
+            _pieceDefinitions[piece] = definition;
     }
 
     private void OnDestroy()
@@ -162,7 +175,7 @@ public class CombatView : MonoBehaviour
 
     private void BuildPieces()
     {
-        if (PiecePrefab == null || PiecesRoot == null)
+        if (PiecesRoot == null)
             return;
 
         foreach (Piece piece in _engine.Pieces)
@@ -170,8 +183,15 @@ public class CombatView : MonoBehaviour
             if (piece.IsDead)
                 continue;
 
+            _pieceDefinitions.TryGetValue(piece, out CharacterData definition);
+            GameObject prefab = definition != null && definition.modelPrefab != null
+                ? definition.modelPrefab
+                : PiecePrefab;
+            if (prefab == null)
+                continue;
+
             GameObject instance = Instantiate(
-                PiecePrefab,
+                prefab,
                 PieceWorldPosition(piece.Coords),
                 Quaternion.identity,
                 PiecesRoot);
@@ -182,7 +202,17 @@ public class CombatView : MonoBehaviour
             {
                 view.Piece = piece;
                 view.SetCompleteAnimationsImmediately(CompleteAnimationsImmediately);
-                view.AssignMaterial(piece.Team == Team.Player ? PiecePlayerMat : PieceEnemyMat);
+                Material material = definition != null && definition.modelMaterial != null
+                    ? definition.modelMaterial
+                    : piece.Team == Team.Player ? PiecePlayerMat : PieceEnemyMat;
+                if (piece.IsQueen && QueenMaterial != null)
+                    material = QueenMaterial;
+                Color? tint = piece.IsQueen
+                    ? QueenColor
+                    : definition != null && definition.useModelTint
+                        ? definition.modelTint
+                        : (Color?)null;
+                view.AssignMaterial(material, tint);
                 view.ConfigureHighlight(
                     PieceHighlightPrefab,
                     PieceSelectedHighlight != null ? PieceSelectedHighlight : TileSelected,
